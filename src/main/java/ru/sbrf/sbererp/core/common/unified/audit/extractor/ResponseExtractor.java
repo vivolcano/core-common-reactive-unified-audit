@@ -6,13 +6,12 @@ import lombok.Getter;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.web.server.ServerWebExchange;
-import ru.sbrf.sbererp.core.common.unified.audit.extractor.util.ExtractorUtil;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditJsonExtractionUtils;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.Holder;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
 
 /**
- * Enum, содержащий экстракторы, реализующие механизмы извлечения параметров из HTTP-ответов. Каждый
- * элемент перечисления предназначен для извлечения определенных типов данных из ответа сервера.
+ * Экстракторы стороны HTTP-ответа: статус, заголовок, JSON-тело.
  */
 @Getter
 public enum ResponseExtractor implements Extractor {
@@ -39,7 +38,7 @@ public enum ResponseExtractor implements Extractor {
       if (ObjectUtils.isEmpty(headerValues)) {
         return null;
       }
-      return String.join(Constants.COMMA_WITH_SPACE, headerValues);
+      return String.join(AuditTextConstants.COMMA_WITH_SPACE, headerValues);
     }
   },
 
@@ -50,10 +49,10 @@ public enum ResponseExtractor implements Extractor {
   RESPONSE_BODY {
     @Override
     public String extractResponse(ServerWebExchange exchange, Holder holder) {
-      String jsonString = ExtractorUtil.parseResponseBody(exchange);
-      String result = ExtractorUtil.extractFieldValue(jsonString, holder);
+      String jsonString = AuditJsonExtractionUtils.parseResponseBody(exchange);
+      String result = AuditJsonExtractionUtils.extractFieldValue(jsonString, holder);
       if (ObjectUtils.isEmpty(result)) {
-        return ExtractorUtil.preparationString(jsonString, holder);
+        return AuditJsonExtractionUtils.preparationString(jsonString, holder);
       }
       return result;
     }

@@ -1,13 +1,17 @@
 package ru.sbrf.sbererp.core.common.unified.audit.web;
 
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExchangeAttributeNames;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 
 /**
  * {@link ServerHttpResponse}, который запоминает записанное тело для последующего аудита.
@@ -15,6 +19,7 @@ import reactor.core.publisher.Mono;
  * Декоратор перехватывает {@link #writeWith} и {@link #writeAndFlushWith}, копирует буферы в массив
  * байтов и сразу передаёт их делегату. Объём буферизации ограничен {@code maxBodyBytes}.
  */
+@Slf4j
 public final class CapturingServerHttpResponse extends ServerHttpResponseDecorator {
 
   /**
@@ -23,14 +28,14 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   private static final int RESPONSE_BODY_PREFETCH = 8;
 
   private final AtomicReference<byte[]> capturedBody =
-      new AtomicReference<>(AuditExchangeAttributes.EMPTY_BODY);
+      new AtomicReference<>(AuditExchangeAttributeNames.EMPTY_BODY);
   private final int maxBodyBytes;
 
   /**
    * Создаёт декоратор ответа.
    *
-   * @param delegate     исходный ответ
-   * @param maxBodyBytes лимит буферизации
+   * @param delegate     исходный ответ.
+   * @param maxBodyBytes лимит буферизации.
    */
   public CapturingServerHttpResponse(ServerHttpResponse delegate, int maxBodyBytes) {
     super(delegate);
@@ -49,7 +54,7 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   /**
    * Собирает тело ответа в память, запоминает его и сразу пишет делегату.
    *
-   * @param body поток буферов тела ответа
+   * @param body поток буферов тела ответа.
    * @return сигнал завершения записи в делегат
    */
   @Override
@@ -60,14 +65,16 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
                 .doOnDiscard(DataBuffer.class, DataBufferUtils::release),
             maxBodyBytes
         )
-        .defaultIfEmpty(bufferFactory().wrap(AuditExchangeAttributes.EMPTY_BODY))
+        .defaultIfEmpty(bufferFactory().wrap(AuditExchangeAttributeNames.EMPTY_BODY))
+        .doOnError(DataBufferLimitException.class,
+            exception -> log.warn(AuditLogMessages.RESPONSE_BODY_EXCEEDS_LIMIT, exception))
         .flatMap(this::writeJoinedBuffer);
   }
 
   /**
    * Сводит chunked-запись к {@link #writeWith}.
    *
-   * @param body поток порций тела ответа
+   * @param body поток порций тела ответа.
    * @return сигнал завершения записи в делегат
    */
   @Override
@@ -78,7 +85,7 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   /**
    * Копирует соединённый буфер в кэш и пишет его делегату.
    *
-   * @param joined соединённый буфер тела
+   * @param joined соединённый буфер тела.
    * @return сигнал завершения записи
    */
   private Mono<Void> writeJoinedBuffer(DataBuffer joined) {
@@ -91,7 +98,7 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   /**
    * Копирует содержимое буфера в новый массив байтов.
    *
-   * @param dataBuffer буфер с телом ответа
+   * @param dataBuffer буфер с телом ответа.
    * @return копия читаемых байтов буфера
    */
   private byte[] readBytes(DataBuffer dataBuffer) {

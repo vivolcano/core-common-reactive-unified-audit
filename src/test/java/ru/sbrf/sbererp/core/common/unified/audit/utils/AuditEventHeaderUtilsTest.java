@@ -1,4 +1,4 @@
-package ru.sbrf.sbererp.core.common.unified.audit.resolver.util;
+package ru.sbrf.sbererp.core.common.unified.audit.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -6,24 +6,23 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpCookie;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
 
-class EventHeaderUtilTest {
+final class AuditEventHeaderUtilsTest {
 
   @Test
   void getRequestIdReturnsHeaderValue() {
     MockServerHttpRequest request = MockServerHttpRequest.get("/api")
-        .header(Constants.REQUEST_ID, "req-1")
+        .header(AuditHttpConstants.REQUEST_ID, "req-1")
         .build();
 
-    assertThat(EventHeaderUtil.getRequestId(request)).isEqualTo("req-1");
+    assertThat(AuditEventHeaderUtils.getRequestId(request)).isEqualTo("req-1");
   }
 
   @Test
   void getSessionPrefersJwtJti() {
     MockServerHttpRequest request = MockServerHttpRequest.get("/api").build();
 
-    String session = EventHeaderUtil.getSession(Map.of(Constants.JTI, "token-id"), request);
+    String session = AuditEventHeaderUtils.getSession(Map.of(AuditJwtConstants.JTI, "token-id"), request);
 
     assertThat(session).isEqualTo("jwt_claim_jti:token-id");
   }
@@ -31,11 +30,11 @@ class EventHeaderUtilTest {
   @Test
   void getSessionFallsBackToCookie() {
     MockServerHttpRequest request = MockServerHttpRequest.get("/api")
-        .cookie(new HttpCookie(Constants.JSESSIONID, "abc"))
+        .cookie(new HttpCookie(AuditHttpConstants.JSESSIONID, "abc"))
         .build();
 
-    String session = EventHeaderUtil.getSession(Map.of(), request);
+    String session = AuditEventHeaderUtils.getSession(Map.of(), request);
 
-    assertThat(session).isEqualTo(Constants.COOKIE_WITH_UNDERSCORE + "abc");
+    assertThat(session).isEqualTo(AuditHttpConstants.COOKIE_WITH_UNDERSCORE + "abc");
   }
 }

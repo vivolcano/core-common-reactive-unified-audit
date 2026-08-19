@@ -17,8 +17,8 @@ import ru.sbrf.sbererp.core.common.unified.audit.resolver.AuditEventResolver;
  * тело запроса/ответа и после завершения цепочки отправляет событие.
  */
 @RequiredArgsConstructor
-@Configuration
-public class AuditLoggingConfig {
+@Configuration(proxyBeanMethods = false)
+public final class AuditLoggingConfig {
 
   /**
    * Порядок фильтра: ближе к клиенту, чтобы тело запроса было доступно контроллеру повторно.

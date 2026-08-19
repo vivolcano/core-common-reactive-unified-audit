@@ -5,9 +5,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.unit.DataSize;
 
 /**
- * Реактивные настройки модуля аудита: лимит буферизации тел запроса и ответа.
+ * YAML {@code audit.reactive}: лимит буфера тел для {@code DataBufferUtils.join}.
  *
- * @param maxBodySize максимальный размер кэшируемого тела; по умолчанию 1 МиБ
+ * @param maxBodySize максимум тела; {@code null} → {@link #DEFAULT_MAX_BODY_SIZE}.
  */
 @ConfigurationProperties(prefix = "audit.reactive")
 public record AuditReactiveProperties(DataSize maxBodySize) {
@@ -20,7 +20,7 @@ public record AuditReactiveProperties(DataSize maxBodySize) {
   /**
    * Подставляет значение по умолчанию, если лимит не задан.
    *
-   * @param maxBodySize лимит тела
+   * @param maxBodySize лимит тела.
    */
   public AuditReactiveProperties {
     maxBodySize = Objects.isNull(maxBodySize) ? DEFAULT_MAX_BODY_SIZE : maxBodySize;

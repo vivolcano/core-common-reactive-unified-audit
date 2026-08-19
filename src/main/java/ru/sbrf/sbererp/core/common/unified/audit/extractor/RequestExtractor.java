@@ -15,15 +15,15 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.server.ServerWebExchange;
-import ru.sbrf.sbererp.core.common.unified.audit.extractor.util.ExtractorUtil;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditJsonExtractionUtils;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.Holder;
-import ru.sbrf.sbererp.core.common.unified.audit.resolver.util.EventHeaderUtil;
-import ru.sbrf.sbererp.core.common.unified.audit.resolver.util.SecurityContextUtil;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditEventHeaderUtils;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.ReactiveSecurityContextUtils;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditHttpConstants;
 
 /**
- * Enum, содержащий экстракторы для извлечения параметров из HTTP-запроса. Каждый элемент
- * соответствует определённому источнику данных: path variable, query param, header и др.
+ * Экстракторы стороны HTTP-запроса: path, query, header, body, Pageable, JWT claim.
  */
 public enum RequestExtractor implements Extractor {
 
@@ -50,7 +50,7 @@ public enum RequestExtractor implements Extractor {
       if (ObjectUtils.isEmpty(values)) {
         return null;
       }
-      return String.join(Constants.COMMA, values);
+      return String.join(AuditTextConstants.COMMA, values);
     }
   },
 
@@ -64,7 +64,7 @@ public enum RequestExtractor implements Extractor {
       if (ObjectUtils.isEmpty(values)) {
         return null;
       }
-      return String.join(Constants.COMMA_WITH_SPACE, values);
+      return String.join(AuditTextConstants.COMMA_WITH_SPACE, values);
     }
   },
 
@@ -74,7 +74,7 @@ public enum RequestExtractor implements Extractor {
   REQUEST_BODY(RequestBody.class, annotation -> null) {
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
-      return ExtractorUtil.preparationString(ExtractorUtil.parseRequestBody(exchange), holder);
+      return AuditJsonExtractionUtils.preparationString(AuditJsonExtractionUtils.parseRequestBody(exchange), holder);
     }
   },
 
@@ -84,8 +84,8 @@ public enum RequestExtractor implements Extractor {
   REQUEST_BODY_FIELD(null, null) {
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
-      String jsonString = ExtractorUtil.parseRequestBody(exchange);
-      return ExtractorUtil.extractFieldValue(jsonString, holder);
+      String jsonString = AuditJsonExtractionUtils.parseRequestBody(exchange);
+      return AuditJsonExtractionUtils.extractFieldValue(jsonString, holder);
     }
   },
 
@@ -95,7 +95,7 @@ public enum RequestExtractor implements Extractor {
   PAGEABLE(null, null) {
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
-      return ExtractorUtil.getPageableParams(exchange.getRequest());
+      return AuditJsonExtractionUtils.getPageableParams(exchange.getRequest());
     }
   },
 
@@ -106,8 +106,8 @@ public enum RequestExtractor implements Extractor {
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       String claimName = Objects.requireNonNullElse(holder.getKey(), holder.getName());
-      Map<String, Object> tokenParamsMap = SecurityContextUtil.getTokenParamsMap(exchange);
-      return EventHeaderUtil.getStringValue(tokenParamsMap, claimName);
+      Map<String, Object> tokenParamsMap = ReactiveSecurityContextUtils.getTokenParamsMap(exchange);
+      return AuditEventHeaderUtils.getStringValue(tokenParamsMap, claimName);
     }
   };
 
@@ -119,8 +119,8 @@ public enum RequestExtractor implements Extractor {
   /**
    * Конструктор экстрактора.
    *
-   * @param annotationClass класс аннотации источника
-   * @param nameExtractor   функция имени из аннотации
+   * @param annotationClass класс аннотации источника.
+   * @param nameExtractor   функция имени из аннотации.
    */
   @SuppressWarnings("unchecked")
   <T extends Annotation> RequestExtractor(
@@ -133,14 +133,14 @@ public enum RequestExtractor implements Extractor {
   /**
    * Определяет экстрактор по аннотации параметра и устанавливает ключ.
    *
-   * @param parameter параметр метода контроллера
-   * @param holder    держатель параметра аудита
+   * @param parameter параметр метода контроллера.
+   * @param holder    держатель параметра аудита.
    */
   public static void setExtractor(Parameter parameter, Holder holder) {
     if (Objects.nonNull(holder.getExtractor())) {
       return;
     }
-    if (Objects.equals(parameter.getType().getName(), Constants.PAGEABLE_CLASS_NAME)) {
+    if (Objects.equals(parameter.getType().getName(), AuditHttpConstants.PAGEABLE_CLASS_NAME)) {
       holder.setExtractor(PAGEABLE);
     }
     findExtractorByAnnotation(parameter)
@@ -150,7 +150,7 @@ public enum RequestExtractor implements Extractor {
   /**
    * Устанавливает экстрактор по умолчанию ({@link #REQUEST_BODY_FIELD}).
    *
-   * @param holder держатель параметра
+   * @param holder держатель параметра.
    */
   public static void setExtractor(Holder holder) {
     holder.setExtractor(REQUEST_BODY_FIELD);
@@ -159,7 +159,7 @@ public enum RequestExtractor implements Extractor {
   /**
    * Ищет экстрактор по аннотации параметра метода.
    *
-   * @param parameter параметр метода
+   * @param parameter параметр метода.
    * @return найденный экстрактор
    */
   private static Optional<RequestExtractor> findExtractorByAnnotation(Parameter parameter) {
@@ -172,9 +172,9 @@ public enum RequestExtractor implements Extractor {
   /**
    * Привязывает найденный экстрактор и ключ к держателю.
    *
-   * @param parameter параметр метода
-   * @param holder    держатель
-   * @param extractor найденный экстрактор
+   * @param parameter параметр метода.
+   * @param holder    держатель.
+   * @param extractor найденный экстрактор.
    */
   private static void bindExtractor(Parameter parameter, Holder holder, RequestExtractor extractor) {
     Annotation annotation = parameter.getAnnotation(extractor.annotationClass);
@@ -188,7 +188,7 @@ public enum RequestExtractor implements Extractor {
   /**
    * Возвращает имя path-variable из аннотации.
    *
-   * @param pathVariable аннотация
+   * @param pathVariable аннотация.
    * @return имя переменной пути
    */
   private static String pathVariableName(PathVariable pathVariable) {
@@ -198,7 +198,7 @@ public enum RequestExtractor implements Extractor {
   /**
    * Возвращает имя query-параметра из аннотации.
    *
-   * @param requestParam аннотация
+   * @param requestParam аннотация.
    * @return имя параметра
    */
   private static String requestParamName(RequestParam requestParam) {
@@ -208,7 +208,7 @@ public enum RequestExtractor implements Extractor {
   /**
    * Возвращает имя заголовка из аннотации.
    *
-   * @param requestHeader аннотация
+   * @param requestHeader аннотация.
    * @return имя заголовка
    */
   private static String requestHeaderName(RequestHeader requestHeader) {

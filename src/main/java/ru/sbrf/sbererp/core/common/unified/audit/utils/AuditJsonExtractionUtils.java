@@ -1,10 +1,8 @@
-package ru.sbrf.sbererp.core.common.unified.audit.extractor.util;
+package ru.sbrf.sbererp.core.common.unified.audit.utils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -15,9 +13,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.server.ServerWebExchange;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.Holder;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ParamHolder;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
-import ru.sbrf.sbererp.core.common.unified.audit.util.LogMessage;
-import ru.sbrf.sbererp.core.common.unified.audit.web.AuditExchangeAttributes;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonPointer;
 import tools.jackson.databind.JsonNode;
@@ -26,37 +21,28 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Класс, содержащий статические методы для извлечения данных из HTTP-запросов и ответов, и
- * подготовки полей событий аудита.
- *
- * <p>Включает методы для получения информации из JWT-токенов, извлечения данных из HTTP-запросов и
- * ответов, поиска и маскировки полей в JSON-документах, а также подготовки параметров событий.
+ * Извлечение и маскирование JSON-полей из кэшированных тел {@link ServerWebExchange}.
+ * <p>
+ * Тела читаются из атрибутов {@link AuditExchangeAttributeNames}; MIME — JSON / problem+json / text.
  */
 @Slf4j
 @UtilityClass
-public class ExtractorUtil {
+public final class AuditJsonExtractionUtils {
 
-  /** Экземпляр Jackson ObjectMapper для работы с JSON-данными. */
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
-  // TODO: не используется
-  /** Кэш путей JSON-полей для ускорения последующих обращений. */
-  private static final Map<String, JsonPointer> FIELD_PATH_CACHE = new ConcurrentHashMap<>();
-
-  // Методы для заполнения параметров события
 
   /**
    * Парсит тело HTTP-запроса в строку JSON из кэша обмена.
    *
-   * @param exchange текущий обмен
+   * @param exchange текущий обмен.
    * @return строка JSON или {@code null}, если тело отсутствует или MIME-тип не поддерживается
    */
   public static String parseRequestBody(ServerWebExchange exchange) {
-    byte[] body = cachedBody(exchange, AuditExchangeAttributes.CACHED_REQUEST_BODY);
+    byte[] body = cachedBody(exchange, AuditExchangeAttributeNames.CACHED_REQUEST_BODY);
     MediaType contentType = exchange.getRequest().getHeaders().getContentType();
     if (!isExtractableBody(body, contentType)) {
       if (ObjectUtils.isEmpty(body)) {
-        log.warn(LogMessage.REQUEST_BODY_IS_EMPTY, exchange.getRequest());
+        log.debug(AuditLogMessages.EMPTY_REQUEST_BODY);
       }
       return null;
     }
@@ -66,15 +52,15 @@ public class ExtractorUtil {
   /**
    * Парсит тело HTTP-ответа в строку JSON из кэша обмена.
    *
-   * @param exchange текущий обмен
+   * @param exchange текущий обмен.
    * @return строка JSON или {@code null}, если тело отсутствует или MIME-тип не поддерживается
    */
   public static String parseResponseBody(ServerWebExchange exchange) {
-    byte[] body = cachedBody(exchange, AuditExchangeAttributes.CACHED_RESPONSE_BODY);
+    byte[] body = cachedBody(exchange, AuditExchangeAttributeNames.CACHED_RESPONSE_BODY);
     MediaType contentType = exchange.getResponse().getHeaders().getContentType();
     if (!isExtractableBody(body, contentType)) {
       if (ObjectUtils.isEmpty(body)) {
-        log.warn(LogMessage.RESPONSE_BODY_IS_EMPTY, exchange.getResponse());
+        log.debug(AuditLogMessages.EMPTY_RESPONSE_BODY);
       }
       return null;
     }
@@ -84,20 +70,20 @@ public class ExtractorUtil {
   /**
    * Читает кэшированное тело из атрибутов обмена.
    *
-   * @param exchange      текущий обмен
-   * @param attributeName ключ атрибута
+   * @param exchange      текущий обмен.
+   * @param attributeName ключ атрибута.
    * @return байты тела или пустой массив
    */
   private static byte[] cachedBody(ServerWebExchange exchange, String attributeName) {
     Object stored = exchange.getAttribute(attributeName);
-    return stored instanceof byte[] bytes ? bytes : AuditExchangeAttributes.EMPTY_BODY;
+    return stored instanceof byte[] bytes ? bytes : AuditExchangeAttributeNames.EMPTY_BODY;
   }
 
   /**
    * Проверяет, что тело непустое и MIME-тип подходит для извлечения JSON/текста.
    *
-   * @param body        байты тела
-   * @param contentType тип содержимого
+   * @param body        байты тела.
+   * @param contentType тип содержимого.
    * @return {@code true}, если тело можно разбирать
    */
   private static boolean isExtractableBody(byte[] body, MediaType contentType) {
@@ -110,54 +96,33 @@ public class ExtractorUtil {
   }
 
   /**
-   * Извлекает значение поля из JSON-строки по имени.
+   * Ищет поле по имени рекурсивно. В массив заходит только если в нём ровно один элемент.
+   * Объект/массив маскируется по {@link ParamHolder#masks()}.
    *
-   * <p>Поиск поля осуществляется рекурсивно по всей JSON-структуре. Если поле находится внутри
-   * коллекции, применяются следующие правила: - Коллекция с одним элементом: поиск продолжается
-   * внутри единственного элемента - Коллекция с несколькими элементами: поиск внутри коллекции не
-   * выполняется - Найденное поле-коллекция возвращается целиком в виде JSON-строки
-   *
-   * <p>Если поле найдено и является объектом или массивом, применяется маскировка указанных
-   * подполей.
-   *
-   * @param jsonString JSON-строка, в которой ищется поле
-   * @param holder объект, содержащий имя поля и маскируемые подполя
-   * @return строковое значение поля или null, если поле не найдено
+   * @param jsonString JSON тела; {@code null} даёт {@code null}.
+   * @param holder     имя/ключ поля и опциональные маски.
+   * @return текстовое значение, JSON узла или {@code null}, если поле не найдено
    */
   public static String extractFieldValue(String jsonString, Holder holder) {
     String fieldName = Objects.requireNonNullElse(holder.getKey(), holder.getName());
-
-    // Очищаем кэш для данного поля перед поиском
-    FIELD_PATH_CACHE.remove(fieldName);
-
-    // Ищем путь до поля с новой логикой
     JsonPointer pointer = findFieldPath(jsonString, fieldName);
     if (Objects.isNull(pointer)) {
-      log.debug(Constants.FIELD_NOT_FOUND_IN_JSON, fieldName);
+      log.debug(AuditLogMessages.JSON_FIELD_NOT_FOUND, fieldName);
       return null;
     }
-    FIELD_PATH_CACHE.put(fieldName, pointer);
-
-    // Извлекаем значение поля
     JsonNode rootNode = readTree(jsonString);
     JsonNode fieldNode = Objects.requireNonNull(rootNode).at(pointer);
-
     if (fieldNode.isMissingNode()) {
-      log.debug(Constants.FIELD_NOT_FOUND, fieldName, pointer);
+      log.debug(AuditLogMessages.JSON_POINTER_NOT_FOUND, fieldName, pointer);
       return null;
     }
-
-    // Обрабатываем поле для извлечения значения
     JsonNode processedNode = processFieldForExtraction(fieldNode, fieldName);
-
-    // Применяем маскировку если необходимо
     if (holder instanceof ParamHolder paramHolder) {
-      if (ObjectUtils.isEmpty(paramHolder.getMasks())) {
+      if (ObjectUtils.isEmpty(paramHolder.masks())) {
         return convertNodeToString(processedNode);
       }
-      return applyMasking(processedNode, paramHolder.getMasks());
+      return applyMasking(processedNode, paramHolder.masks());
     }
-
     return convertNodeToString(processedNode);
   }
 
@@ -167,8 +132,8 @@ public class ExtractorUtil {
    * <p>Используется, когда нужно передать всё тело как один параметр события, но с частичным
    * скрытием данных.
    *
-   * @param jsonString JSON-строка, которую нужно обработать
-   * @param holder объект, содержащий список маскируемых полей
+   * @param jsonString JSON-строка, которую нужно обработать.
+   * @param holder объект, содержащий список маскируемых полей.
    * @return обработанная JSON-строка или исходная, если произошла ошибка
    */
   public static String preparationString(String jsonString, Holder holder) {
@@ -178,14 +143,14 @@ public class ExtractorUtil {
         return null;
       }
       if (holder instanceof ParamHolder paramHolder) {
-        List<String> masks = paramHolder.getMasks();
+        List<String> masks = paramHolder.masks();
         if (ObjectUtils.isNotEmpty(masks)) {
           maskFields((ObjectNode) rootNode, masks);
         }
       }
       return OBJECT_MAPPER.writeValueAsString(rootNode);
     } catch (Exception e) {
-      log.info(LogMessage.CAN_NOT_CONVERTED_TO_JSON, jsonString);
+      log.warn(AuditLogMessages.FAILED_TO_PARSE_JSON, e);
       return jsonString;
     }
   }
@@ -193,41 +158,41 @@ public class ExtractorUtil {
   /**
    * Извлекает параметры пагинации (страница, размер страницы, сортировка) из HTTP-запроса.
    *
-   * @param request HTTP-запрос, из которого извлекаются параметры
+   * @param request HTTP-запрос, из которого извлекаются параметры.
    * @return строка формата page/size/sort
    */
   public static String getPageableParams(ServerHttpRequest request) {
     MultiValueMap<String, String> queryParams = request.getQueryParams();
-    String page = queryParams.getFirst(Constants.PAGE);
-    String size = queryParams.getFirst(Constants.SIZE);
-    List<String> sortParams = queryParams.get(Constants.SORT);
+    String page = queryParams.getFirst(AuditHttpConstants.PAGE);
+    String size = queryParams.getFirst(AuditHttpConstants.SIZE);
+    List<String> sortParams = queryParams.get(AuditHttpConstants.SORT);
     String sortLog = formatSortParams(sortParams);
-    return String.format(Constants.PAGEABLE_STRING_PATTERN, page, size, sortLog);
+    return String.format(AuditHttpConstants.PAGEABLE_STRING_PATTERN, page, size, sortLog);
   }
 
   /**
    * Форматирует значения параметра {@code sort} для логирования пагинации.
    *
-   * @param sortParams значения query-параметра sort
+   * @param sortParams значения query-параметра sort.
    * @return строка сортировки или литерал {@code null}
    */
   private static String formatSortParams(List<String> sortParams) {
     if (ObjectUtils.isEmpty(sortParams)) {
-      return Constants.STRING_LITERAL_NULL;
+      return AuditTextConstants.STRING_LITERAL_NULL;
     }
     return sortParams.stream()
-        .map(ExtractorUtil::trimOrNullLiteral)
-        .collect(Collectors.joining(Constants.COMMA_WITH_SPACE));
+        .map(AuditJsonExtractionUtils::trimOrNullLiteral)
+        .collect(Collectors.joining(AuditTextConstants.COMMA_WITH_SPACE));
   }
 
   /**
    * Обрезает пробелы параметра сортировки либо возвращает литерал {@code null}.
    *
-   * @param param значение sort
+   * @param param значение sort.
    * @return обрезанная строка или {@code "null"}
    */
   private static String trimOrNullLiteral(String param) {
-    return Objects.isNull(param) ? Constants.STRING_LITERAL_NULL : param.trim();
+    return Objects.isNull(param) ? AuditTextConstants.STRING_LITERAL_NULL : param.trim();
   }
 
   // Приватные методы для заполнения параметров события
@@ -239,8 +204,8 @@ public class ExtractorUtil {
    * не выполняется - Коллекция с одним элементом: поиск продолжается внутри единственного элемента
    * - Коллекция с несколькими элементами: поиск внутри коллекции не выполняется
    *
-   * @param jsonString JSON-строка, в которой ищется поле
-   * @param fieldName имя поля, которое нужно найти
+   * @param jsonString JSON-строка, в которой ищется поле.
+   * @param fieldName имя поля, которое нужно найти.
    * @return {@link JsonPointer}, указывающий на путь к полю, или null, если поле не найдено
    */
   private static JsonPointer findFieldPath(String jsonString, String fieldName) {
@@ -249,9 +214,8 @@ public class ExtractorUtil {
       return null;
     }
     JsonPointer pointer =
-        findIntoDepthFieldPath(rootNode, fieldName, JsonPointer.compile(Constants.EMPTY_STRING));
+        findIntoDepthFieldPath(rootNode, fieldName, JsonPointer.compile(AuditTextConstants.EMPTY_STRING));
     if (Objects.isNull(pointer)) {
-      log.info(LogMessage.FIELD_NOT_FOUND_IN_JSON, fieldName);
       return null;
     }
     return pointer;
@@ -261,9 +225,9 @@ public class ExtractorUtil {
    * Рекурсивно ищет указанный путь до поля в JSON-структуре. Не заходит внутрь коллекций с более
    * чем одним элементом.
    *
-   * @param node текущий JSON-узел для поиска
-   * @param fieldName имя искомого поля
-   * @param currentPath текущий путь в формате JSON Pointer
+   * @param node текущий JSON-узел для поиска.
+   * @param fieldName имя искомого поля.
+   * @param currentPath текущий путь в формате JSON Pointer.
    * @return JsonPointer путь к найденному полю или null, если поле не найдено
    */
   private static JsonPointer findIntoDepthFieldPath(
@@ -272,7 +236,7 @@ public class ExtractorUtil {
     if (node.isObject()) {
       for (String currentField : node.propertyNames()) {
         JsonNode childNode = node.get(currentField);
-        JsonPointer newPath = JsonPointer.valueOf(currentPath + Constants.SLASH + currentField);
+        JsonPointer newPath = JsonPointer.valueOf(currentPath + AuditTextConstants.SLASH + currentField);
 
         // 1. Если нашли искомое поле - возвращаем путь
         if (currentField.equals(fieldName)) {
@@ -292,16 +256,14 @@ public class ExtractorUtil {
 
       if (size == 0) {
         // Пустая коллекция - не ищем внутри
-        log.debug(Constants.SKIPPING_EMPTY_COLLECTION, currentPath);
+        log.debug(AuditLogMessages.SKIPPING_EMPTY_JSON_ARRAY, currentPath);
         return null;
       } else if (size == 1) {
-        // Коллекция с одним элементом - заходим внутрь
-        log.debug(Constants.GOING_INSIDE_COLLECTION_WITH_ONE_ELEMENT, currentPath);
+        log.debug(AuditLogMessages.DESCENDING_SINGLE_ELEMENT_ARRAY, currentPath);
         return findIntoDepthFieldPath(
-            arrayNode.get(0), fieldName, JsonPointer.valueOf(currentPath + Constants.SLASH + 0));
+            arrayNode.get(0), fieldName, JsonPointer.valueOf(currentPath + AuditTextConstants.SLASH + 0));
       } else {
-        // Коллекция с несколькими элементами - НЕ заходим внутрь
-        log.debug(Constants.SKIPPING_COLLECTION, size, currentPath);
+        log.debug(AuditLogMessages.SKIPPING_MULTI_ELEMENT_ARRAY, size, currentPath);
         return null;
       }
     }
@@ -312,18 +274,18 @@ public class ExtractorUtil {
    * Обрабатывает узел поля для извлечения значения. Для коллекций возвращает всю коллекцию, для
    * примитивов - значение.
    *
-   * @param fieldNode найденный JSON-узел поля
-   * @param fieldName имя поля
+   * @param fieldNode найденный JSON-узел поля.
+   * @param fieldName имя поля.
    * @return обработанный JSON-узел
    */
   private static JsonNode processFieldForExtraction(JsonNode fieldNode, String fieldName) {
     if (fieldNode.isArray()) {
-      log.debug(Constants.FIELD_COLLECTION_WAS_FOUND, fieldName);
+      log.debug(AuditLogMessages.FOUND_JSON_ARRAY_FIELD, fieldName);
       return fieldNode;
     }
 
     if (fieldNode.isObject()) {
-      log.debug(Constants.FIELD_OBJECT_WAS_FOUND, fieldName);
+      log.debug(AuditLogMessages.FOUND_JSON_OBJECT_FIELD, fieldName);
       return fieldNode;
     }
 
@@ -334,7 +296,7 @@ public class ExtractorUtil {
    * Преобразует JSON-узел в строку. Для примитивных значений возвращает текстовое представление,
    * для объектов и массивов - JSON-строку.
    *
-   * @param node JSON-узел для преобразования
+   * @param node JSON-узел для преобразования.
    * @return строковое представление узла или null, если узел null
    */
   private static String convertNodeToString(JsonNode node) {
@@ -348,7 +310,7 @@ public class ExtractorUtil {
     try {
       return OBJECT_MAPPER.writeValueAsString(node);
     } catch (JacksonException e) {
-      log.warn(Constants.COULD_NOT_CONVERT_JSON_NODE_TO_STRING, e.getMessage());
+      log.warn(AuditLogMessages.FAILED_TO_CONVERT_JSON_NODE, e);
       return node.toString();
     }
   }
@@ -356,8 +318,8 @@ public class ExtractorUtil {
   /**
    * Применяет маскировку к JSON-узлу согласно указанным путям полей.
    *
-   * @param node JSON-узел для маскировки
-   * @param masks список путей до полей, которые нужно скрыть
+   * @param node JSON-узел для маскировки.
+   * @param masks список путей до полей, которые нужно скрыть.
    * @return строка с замаскированным JSON-узлом
    */
   private static String applyMasking(JsonNode node, List<String> masks) {
@@ -376,8 +338,8 @@ public class ExtractorUtil {
   /**
    * Маскирует объекты внутри JSON-массива.
    *
-   * @param arrayNode массив для маскирования
-   * @param masks     пути скрываемых полей
+   * @param arrayNode массив для маскирования.
+   * @param masks     пути скрываемых полей.
    */
   private static void maskArrayElements(ArrayNode arrayNode, List<String> masks) {
     arrayNode.forEach(element -> maskObjectElement(element, masks));
@@ -386,8 +348,8 @@ public class ExtractorUtil {
   /**
    * Маскирует поля, если элемент массива является объектом.
    *
-   * @param element элемент массива
-   * @param masks   пути скрываемых полей
+   * @param element элемент массива.
+   * @param masks   пути скрываемых полей.
    */
   private static void maskObjectElement(JsonNode element, List<String> masks) {
     if (element.isObject()) {
@@ -398,14 +360,14 @@ public class ExtractorUtil {
   /**
    * Читает JSON-строку и создает объект JSONNode.
    *
-   * @param jsonString JSON-строка, которую нужно прочитать
+   * @param jsonString JSON-строка, которую нужно прочитать.
    * @return {@link JsonNode} или null, если чтение строки невозможно
    */
   private static JsonNode readTree(String jsonString) {
     try {
       return OBJECT_MAPPER.readTree(jsonString);
     } catch (JacksonException | IllegalArgumentException e) {
-      log.warn(LogMessage.CAN_NOT_CREATE_JSON_NODE_FROM_STRING, jsonString);
+      log.warn(AuditLogMessages.FAILED_TO_CREATE_JSON_NODE, e);
       return null;
     }
   }
@@ -417,8 +379,8 @@ public class ExtractorUtil {
   /**
    * Применяет маскировку полей в JSON-объекте согласно указанным путям.
    *
-   * @param node JSON-объект, в котором будут скрыты поля
-   * @param masks список путей до полей, которые нужно скрыть
+   * @param node JSON-объект, в котором будут скрыты поля.
+   * @param masks список путей до полей, которые нужно скрыть.
    */
   private static void maskFields(ObjectNode node, List<String> masks) {
     if (Objects.isNull(node) || ObjectUtils.isEmpty(masks)) {
@@ -430,26 +392,26 @@ public class ExtractorUtil {
   /**
    * Маскирует одно поле по пути, игнорируя ошибки конкретного пути.
    *
-   * @param node JSON-объект
-   * @param path путь маскирования
+   * @param node JSON-объект.
+   * @param path путь маскирования.
    */
   private static void maskSinglePath(ObjectNode node, String path) {
     try {
-      if (path.startsWith(Constants.SLASH)) {
+      if (path.startsWith(AuditTextConstants.SLASH)) {
         maskFieldUsingPointer(node, JsonPointer.compile(path));
         return;
       }
       maskFieldInCollections(node, path);
     } catch (Exception exception) {
-      log.info(LogMessage.FAILED_TO_MASK_FIELD, path, exception);
+      log.warn(AuditLogMessages.FAILED_TO_MASK_FIELD, path, exception);
     }
   }
 
   /**
    * Рекурсивно проходит по JSON-объектам и массивам, скрывая указанные поля.
    *
-   * @param node начальный JSON-узел, с которым начинается обход
-   * @param fieldPath путь до поля, которое нужно скрыть
+   * @param node начальный JSON-узел, с которым начинается обход.
+   * @param fieldPath путь до поля, которое нужно скрыть.
    */
   private static void maskFieldInCollections(JsonNode node, String fieldPath) {
     String[] pathParts = fieldPath.split("\\.");
@@ -459,9 +421,9 @@ public class ExtractorUtil {
   /**
    * Рекурсивно обрабатывает узлы JSON-объекта или массива, скрывая указанное поле.
    *
-   * @param node текущий JSON-узел, над которым производится обработка
-   * @param pathParts массив частей пути до поля, которое нужно скрыть
-   * @param currentIndex индекс текущей части пути
+   * @param node текущий JSON-узел, над которым производится обработка.
+   * @param pathParts массив частей пути до поля, которое нужно скрыть.
+   * @param currentIndex индекс текущей части пути.
    */
   private static void processNode(JsonNode node, String[] pathParts, int currentIndex) {
     if (Objects.isNull(node) || currentIndex >= pathParts.length) {
@@ -495,8 +457,8 @@ public class ExtractorUtil {
   /**
    * Прямо удаляет поле из родительского JSON-узла по указанному JSONPointer.
    *
-   * @param node родительский JSON-объект, содержащий поле
-   * @param pointer JSONPointer, указывающий на поле, которое нужно удалить
+   * @param node родительский JSON-объект, содержащий поле.
+   * @param pointer JSONPointer, указывающий на поле, которое нужно удалить.
    */
   private static void maskFieldUsingPointer(ObjectNode node, JsonPointer pointer) {
     JsonNode parentNode = node.at(pointer.head());

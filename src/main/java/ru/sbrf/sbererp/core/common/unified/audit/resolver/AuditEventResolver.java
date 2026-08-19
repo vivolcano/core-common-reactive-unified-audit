@@ -21,21 +21,23 @@ import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ClassEventsHo
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.EventHolder;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.MethodEventsHolder;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ParamHolder;
-import ru.sbrf.sbererp.core.common.unified.audit.resolver.util.EventHeaderUtil;
-import ru.sbrf.sbererp.core.common.unified.audit.resolver.util.SecurityContextUtil;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditEventHeaderUtils;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.ReactiveSecurityContextUtils;
 import ru.sbrf.sbererp.core.common.unified.audit.service.AuditClientService;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
-import ru.sbrf.sbererp.core.common.unified.audit.util.LogMessage;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditHttpConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExceptionMessages;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 
 /**
- * Основной сервис разрешения и формирования аудит-событий.
+ * Разрешает YAML-событие по {@link HandlerMethod} и HTTP-статусу, собирает {@link EventAdapter}.
  * <p>
- * Определяет, какое событие аудита должно быть отправлено на основе обработанного HTTP-запроса.
+ * Вызывается из {@code AuditWebFilter} после цепочки (успех и ошибка). Claims кладутся
+ * в атрибут {@code unified.audit.tokenParams} до синхронных экстракторов.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuditEventResolver {
+@Slf4j
+public final class AuditEventResolver {
 
   /** Сервис аудита для отправки событий. */
   private final AuditClientService auditClientService;
@@ -47,32 +49,32 @@ public class AuditEventResolver {
    * Основной метод аудита — вызывается после обработки запроса. Находит подходящее событие и
    * отправляет его в сервис аудита.
    *
-   * @param exchange завершённый обмен
+   * @param exchange завершённый обмен.
    * @return сигнал завершения отправки (пустой, если событие не требуется)
    */
   public Mono<Void> audit(ServerWebExchange exchange) {
-    return SecurityContextUtil.loadTokenParamsMap()
-        .map(params -> SecurityContextUtil.storeTokenParams(exchange, params))
+    return ReactiveSecurityContextUtils.loadTokenParamsMap()
+        .map(params -> ReactiveSecurityContextUtils.storeTokenParams(exchange, params))
         .flatMap(this::resolveAndSend);
   }
 
   /**
    * Разрешает событие по handler method и отправляет его, если конфигурация найдена.
    *
-   * @param exchange обмен с сохранёнными claims
+   * @param exchange обмен с сохранёнными claims.
    * @return сигнал завершения
    */
   private Mono<Void> resolveAndSend(ServerWebExchange exchange) {
     return findHandlerMethod(exchange)
         .flatMap(handlerMethod -> findMethodEventsHolder(handlerMethod)
-            .map(holder -> sendResolvedEvent(holder, exchange))
+            .map(holder -> sendResolvedEvent(holder, handlerMethod, exchange))
             .getOrElse(Mono::empty));
   }
 
   /**
    * Ищет {@link HandlerMethod} в атрибутах обмена после {@code DispatcherHandler}.
    *
-   * @param exchange текущий обмен
+   * @param exchange текущий обмен.
    * @return handler method или пустой Mono
    */
   private Mono<HandlerMethod> findHandlerMethod(ServerWebExchange exchange) {
@@ -80,69 +82,100 @@ public class AuditEventResolver {
     if (handler instanceof HandlerMethod handlerMethod) {
       return Mono.just(handlerMethod);
     }
+    log.debug(
+        AuditLogMessages.NO_HANDLER_METHOD,
+        exchange.getRequest().getMethod(),
+        exchange.getRequest().getPath()
+    );
     return Mono.empty();
   }
 
   /**
    * Находит конфигурацию событий для метода контроллера.
    *
-   * @param handlerMethod обработчик запроса
+   * @param handlerMethod обработчик запроса.
    * @return держатель событий метода
    */
   private Option<MethodEventsHolder> findMethodEventsHolder(HandlerMethod handlerMethod) {
-    return Option.ofOptional(
-        config.getClassEventsHolders().stream()
+    Option<MethodEventsHolder> mapping = Option.ofOptional(
+        config.classEventsHolders().stream()
             .filter(classHolder -> matchesController(classHolder, handlerMethod))
-            .map(classHolder -> classHolder.getEventsMap().get(handlerMethod.getMethod().getName()))
+            .map(classHolder -> classHolder.eventsMap().get(handlerMethod.getMethod().getName()))
             .filter(Objects::nonNull)
             .findFirst()
     );
+    if (mapping.isEmpty()) {
+      log.debug(
+          AuditLogMessages.NO_AUDIT_MAPPING,
+          handlerMethod.getBeanType().getName(),
+          handlerMethod.getMethod().getName()
+      );
+    }
+    return mapping;
   }
 
   /**
    * Проверяет, что handler относится к сконфигурированному контроллеру и метод описан в YAML.
    *
-   * @param classEventsHolder конфигурация контроллера
-   * @param handlerMethod     обработчик
+   * @param classEventsHolder конфигурация контроллера.
+   * @param handlerMethod     обработчик.
    * @return {@code true}, если контроллер и метод совпали
    */
   private boolean matchesController(ClassEventsHolder classEventsHolder, HandlerMethod handlerMethod) {
-    return handlerMethod.getBeanType().isAssignableFrom(classEventsHolder.getControllerClass())
-        && classEventsHolder.getEventsMap().containsKey(handlerMethod.getMethod().getName());
+    return handlerMethod.getBeanType().isAssignableFrom(classEventsHolder.controllerClass())
+        && classEventsHolder.eventsMap().containsKey(handlerMethod.getMethod().getName());
   }
 
   /**
    * Собирает адаптер события и отправляет его в клиент аудита.
    *
-   * @param methodEventsHolder события метода
-   * @param exchange           текущий обмен
+   * @param methodEventsHolder события метода.
+   * @param handlerMethod      найденный handler.
+   * @param exchange           текущий обмен.
    * @return сигнал завершения отправки
    */
   private Mono<Void> sendResolvedEvent(
       MethodEventsHolder methodEventsHolder,
+      HandlerMethod handlerMethod,
       ServerWebExchange exchange) {
-    EventHolder eventHolder = getEventHolder(methodEventsHolder, exchange);
-    return auditClientService.sendEvent(createEvent(eventHolder, exchange));
+    try {
+      EventHolder eventHolder = getEventHolder(methodEventsHolder, exchange);
+      log.debug(
+          AuditLogMessages.RESOLVED_AUDIT_EVENT,
+          eventHolder.name(),
+          handlerMethod.getBeanType().getName(),
+          handlerMethod.getMethod().getName()
+      );
+      return auditClientService.sendEvent(createEvent(eventHolder, exchange));
+    } catch (UnifiedAuditException exception) {
+      log.warn(
+          AuditLogMessages.NO_MATCHING_AUDIT_EVENT,
+          handlerMethod.getBeanType().getName(),
+          handlerMethod.getMethod().getName(),
+          exception
+      );
+      return Mono.empty();
+    }
   }
 
   /**
    * Создаёт объект события аудита на основе шаблона и данных обмена.
    *
-   * @param eventHolder шаблон события
-   * @param exchange    текущий обмен
+   * @param eventHolder шаблон события.
+   * @param exchange    текущий обмен.
    * @return адаптер события
    */
   private EventAdapter createEvent(EventHolder eventHolder, ServerWebExchange exchange) {
-    Map<String, Object> headerParamsMap = SecurityContextUtil.getTokenParamsMap(exchange);
+    Map<String, Object> headerParamsMap = ReactiveSecurityContextUtils.getTokenParamsMap(exchange);
     EventAdapter eventAdapter = EventAdapter.builder()
-        .userLogin(EventHeaderUtil.getUserLogin(headerParamsMap))
-        .userName(EventHeaderUtil.getUserName(headerParamsMap))
-        .requestId(EventHeaderUtil.getRequestId(exchange.getRequest()))
-        .userNode(EventHeaderUtil.getUserNode(headerParamsMap))
-        .session(EventHeaderUtil.getSession(headerParamsMap, exchange.getRequest()))
-        .nodeId(EventHeaderUtil.getNodeId())
-        .eventName(eventHolder.getName())
-        .isSuccess(eventHolder.getSuccess())
+        .userLogin(AuditEventHeaderUtils.getUserLogin(headerParamsMap))
+        .userName(AuditEventHeaderUtils.getUserName(headerParamsMap))
+        .requestId(AuditEventHeaderUtils.getRequestId(exchange.getRequest()))
+        .userNode(AuditEventHeaderUtils.getUserNode(headerParamsMap))
+        .session(AuditEventHeaderUtils.getSession(headerParamsMap, exchange.getRequest()))
+        .nodeId(AuditEventHeaderUtils.getNodeId())
+        .eventName(eventHolder.name())
+        .isSuccess(eventHolder.success())
         .build();
     addEventParams(eventAdapter, eventHolder, exchange);
     return eventAdapter;
@@ -151,15 +184,15 @@ public class AuditEventResolver {
   /**
    * Добавляет параметры события через назначенные экстракторы.
    *
-   * @param eventAdapter адаптер события
-   * @param eventHolder  шаблон
-   * @param exchange     текущий обмен
+   * @param eventAdapter адаптер события.
+   * @param eventHolder  шаблон.
+   * @param exchange     текущий обмен.
    */
   private void addEventParams(
       EventAdapter eventAdapter,
       EventHolder eventHolder,
       ServerWebExchange exchange) {
-    Map<String, List<ParamHolder>> paramsMap = eventHolder.getParamsMap();
+    Map<String, List<ParamHolder>> paramsMap = eventHolder.paramsMap();
     java.util.Arrays.stream(AuditParameterBinder.values())
         .filter(binder -> paramsMap.containsKey(binder.getParamsMapKey()))
         .forEach(binder -> bindParams(eventAdapter, paramsMap.get(binder.getParamsMapKey()), binder, exchange));
@@ -168,10 +201,10 @@ public class AuditEventResolver {
   /**
    * Извлекает значения параметров одного биндера и кладёт их в адаптер.
    *
-   * @param eventAdapter адаптер
-   * @param paramHolders параметры категории
-   * @param binder       категория источника
-   * @param exchange     текущий обмен
+   * @param eventAdapter адаптер.
+   * @param paramHolders параметры категории.
+   * @param binder       категория источника.
+   * @param exchange     текущий обмен.
    */
   private void bindParams(
       EventAdapter eventAdapter,
@@ -179,11 +212,11 @@ public class AuditEventResolver {
       AuditParameterBinder binder,
       ServerWebExchange exchange) {
     String name = binder.name();
-    if (name.contains(Constants.REQUEST) || name.equalsIgnoreCase(Constants.CLAIMS)) {
+    if (name.contains(AuditHttpConstants.REQUEST) || name.equalsIgnoreCase(AuditHttpConstants.CLAIMS)) {
       paramHolders.forEach(paramHolder -> addRequestParam(eventAdapter, paramHolder, exchange));
       return;
     }
-    if (name.contains(Constants.RESPONSE)) {
+    if (name.contains(AuditHttpConstants.RESPONSE)) {
       paramHolders.forEach(paramHolder -> addResponseParam(eventAdapter, paramHolder, exchange));
     }
   }
@@ -191,9 +224,9 @@ public class AuditEventResolver {
   /**
    * Добавляет параметр, извлечённый из запроса.
    *
-   * @param eventAdapter адаптер
-   * @param paramHolder  параметр
-   * @param exchange     текущий обмен
+   * @param eventAdapter адаптер.
+   * @param paramHolder  параметр.
+   * @param exchange     текущий обмен.
    */
   private void addRequestParam(
       EventAdapter eventAdapter,
@@ -205,9 +238,9 @@ public class AuditEventResolver {
   /**
    * Добавляет параметр, извлечённый из ответа.
    *
-   * @param eventAdapter адаптер
-   * @param paramHolder  параметр
-   * @param exchange     текущий обмен
+   * @param eventAdapter адаптер.
+   * @param paramHolder  параметр.
+   * @param exchange     текущий обмен.
    */
   private void addResponseParam(
       EventAdapter eventAdapter,
@@ -219,8 +252,8 @@ public class AuditEventResolver {
   /**
    * Выбирает конкретное событие на основе условий или статуса ответа.
    *
-   * @param methodEventsHolder события метода
-   * @param exchange           текущий обмен
+   * @param methodEventsHolder события метода.
+   * @param exchange           текущий обмен.
    * @return подходящее событие
    */
   private EventHolder getEventHolder(MethodEventsHolder methodEventsHolder, ServerWebExchange exchange) {
@@ -234,23 +267,23 @@ public class AuditEventResolver {
   /**
    * Выбирает событие без условий по признаку успешности HTTP-статуса.
    *
-   * @param methodEventsHolder события метода
-   * @param exchange           текущий обмен
+   * @param methodEventsHolder события метода.
+   * @param exchange           текущий обмен.
    * @return событие с совпадающим {@code success}
    */
   private EventHolder eventBySuccess(MethodEventsHolder methodEventsHolder, ServerWebExchange exchange) {
     boolean isSuccess = isSuccessStatus(exchange.getResponse().getStatusCode());
     return methodEventsHolder.methodEventHolders().stream()
         .filter(eventHolder -> !eventHolder.hasConditions())
-        .filter(eventHolder -> Objects.equals(eventHolder.getSuccess(), isSuccess))
+        .filter(eventHolder -> Objects.equals(eventHolder.success(), isSuccess))
         .findFirst()
-        .orElseThrow(() -> new UnifiedAuditException(LogMessage.NOT_SUITABLE_EVENT));
+        .orElseThrow(() -> new UnifiedAuditException(AuditExceptionMessages.NOT_SUITABLE_EVENT));
   }
 
   /**
    * Считает статус успешным в диапазоне 200–308, как в блокирующей реализации.
    *
-   * @param status код ответа; {@code null} трактуется как успех 200
+   * @param status код ответа; {@code null} трактуется как успех 200.
    * @return {@code true}, если статус в диапазоне успеха
    */
   private boolean isSuccessStatus(HttpStatusCode status) {

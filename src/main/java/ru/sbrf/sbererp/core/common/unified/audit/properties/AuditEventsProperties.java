@@ -7,17 +7,15 @@ import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ClassEventsHo
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.EventHolder;
 
 /**
- * Модель событий аудита, загружаемая из YAML по префиксу {@code audit.model}.
+ * YAML {@code audit.model}: привязка событий к FQCN контроллеров и именам методов.
  *
- * @param classEventsHolders привязки событий к контроллерам
+ * @param classEventsHolders список контроллеров; {@code null}/пусто нормализуется в {@link List#of()}.
  */
 @ConfigurationProperties(prefix = "audit.model")
 public record AuditEventsProperties(List<ClassEventsHolder> classEventsHolders) {
 
   /**
-   * Нормализует список держателей событий.
-   *
-   * @param classEventsHolders список контроллеров с событиями
+   * Копирует список, чтобы бин свойств не делил мутабельную коллекцию с биндером.
    */
   public AuditEventsProperties {
     classEventsHolders = ObjectUtils.isEmpty(classEventsHolders)
@@ -26,23 +24,14 @@ public record AuditEventsProperties(List<ClassEventsHolder> classEventsHolders) 
   }
 
   /**
-   * Возвращает плоский список всех событий для регистрации метамодели.
+   * Плоский список всех {@link EventHolder} для {@code AuditService#register}.
    *
-   * @return события всех контроллеров
+   * @return события всех контроллеров в порядке YAML
    */
-  public List<EventHolder> getMetamodelEvents() {
+  public List<EventHolder> metamodelEvents() {
     return classEventsHolders.stream()
-        .map(ClassEventsHolder::getClassEventHolderList)
+        .map(ClassEventsHolder::classEventHolderList)
         .flatMap(List::stream)
         .toList();
-  }
-
-  /**
-   * Возвращает привязки событий к контроллерам.
-   *
-   * @return список {@link ClassEventsHolder}
-   */
-  public List<ClassEventsHolder> getClassEventsHolders() {
-    return classEventsHolders;
   }
 }

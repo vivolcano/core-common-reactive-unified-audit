@@ -1,74 +1,39 @@
 package ru.sbrf.sbererp.core.common.unified.audit.properties.holder;
+
 import ru.sbrf.sbererp.core.common.unified.audit.binder.AuditParameterBinder;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.Extractor;
+import org.springframework.web.server.ServerWebExchange;
 
 /**
- * Базовый интерфейс для хранения метаданных параметра или условия аудита.
+ * YAML-параметр или условие с отложенной привязкой {@link Extractor}.
  * <p>
- * Определяет общие свойства, необходимые для извлечения и идентификации данных при формировании
- * событий аудита. Реализующие классы (например, {@link ParamHolder}, {@link ConditionHolder})
- * используются для настройки поведения экстракторов и определения, какие данные должны быть
- * зафиксированы в логе аудита.
- * <p>
- * Основные функции:
- * <ul>
- *   <li>Хранение имени параметра/условия ({@link #getName()})</li>
- *   <li>Хранение ключа для извлечения значения ({@link #getKey()})</li>
- *   <li>Привязка экстрактора, отвечающего за извлечение данных ({@link #getExtractor()}, {@link #setExtractor(Extractor)})</li>
- * </ul>
- *
- * @see ParamHolder
- * @see ConditionHolder
- * @see Extractor
+ * {@link #setExtractor(Extractor)} / {@link #setKey(String)} вызываются из
+ * {@link AuditParameterBinder} после резолва метода контроллера.
  */
 public interface Holder {
+
   /**
-   * Возвращает имя параметра или условия.
-   * <p>
-   * Используется для идентификации параметра в конфигурации и, при необходимости,
-   * как отображаемое название в логах или отчётах.
-   *
-   * @return имя параметра или условия, не должно быть null
+   * @return имя из YAML ({@code name} / {@code field}), не {@code null} после валидации
    */
   String getName();
 
   /**
-   * Возвращает экстрактор, ответственный за извлечение значения из контекста (запроса/ответа).
-   * <p>
-   * Экстрактор устанавливается на этапе инициализации конфигурации.
-   *
-   * @return реализация {@link Extractor}, или null, если не установлена
-   * @see Extractor
+   * @return экстрактор после биндинга; {@code null} до {@link AuditParameterBinder}
    */
   Extractor getExtractor();
 
   /**
-   * Устанавливает экстрактор для извлечения значения.
-   * <p>
-   * Вызывается при компиляции конфигурации, например, в {@link AuditParameterBinder}.
-   *
-   * @param extractor реализация экстрактора, может быть null (но обычно не должно)
-   * @see Extractor
+   * @param extractor стратегия извлечения из {@link ServerWebExchange}.
    */
   void setExtractor(Extractor extractor);
 
   /**
-   * Возвращает ключ, используемый для извлечения значения.
-   * <p>
-   * Например, имя HTTP-заголовка, параметра запроса, поля в JSON-теле и т.д.
-   * Если не задан, может возвращать то же, что и {@link #getName()}.
-   *
-   * @return ключ для извлечения значения, может быть null
+   * @return ключ извлечения (заголовок, query, JSON-поле); {@code null} пока биндер не задал
    */
   String getKey();
 
   /**
-   * Устанавливает ключ, используемый для извлечения значения.
-   * <p>
-   * Может отличаться от имени ({@link #getName()}), если, например, в конфигурации
-   * указано отдельное поле "key".
-   *
-   * @param key ключ для извлечения значения, может быть null
+   * @param key имя источника; может совпадать с {@link #getName()}.
    */
   void setKey(String key);
 }

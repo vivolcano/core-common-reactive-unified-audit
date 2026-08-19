@@ -1,32 +1,18 @@
 package ru.sbrf.sbererp.core.common.unified.audit.exception;
 
 /**
- * Исключение, используемое для обработки ошибок, связанных с процессом аудита.
+ * Непроверяемое исключение конфигурации и разрешения событий аудита.
  * <p>
- * Поддерживается два способа инициализации исключения:
- * <ul>
- *   <li>С использованием шаблона сообщения и переменных аргументов.</li>
- *   <li>С передачей готового текста сообщения.</li>
- * </ul>
+ * Текст формируется через {@link String#format(String, Object...)}. Не используется для ошибок
+ * сети/клиента SBT — они логируются и глотаются в {@code AuditClientServiceImpl}.
  */
-public class UnifiedAuditException extends RuntimeException {
+public final class UnifiedAuditException extends RuntimeException {
 
   /**
-   * Инициализирует исключение с форматом сообщения на основе переданного шаблона и аргументов.
-   *
-   * @param pattern шаблон сообщения об ошибке
-   * @param args    аргументы для подстановки в шаблон
+   * @param pattern шаблон {@link String#format(String, Object...)}.
+   * @param args    аргументы шаблона; допускается пустой массив.
    */
   public UnifiedAuditException(String pattern, Object... args) {
     super(String.format(pattern, args));
-  }
-
-  /**
-   * Инициализирует исключение с готовым текстом сообщения.
-   *
-   * @param message текст сообщения об ошибке
-   */
-  public UnifiedAuditException(String message) {
-    super(message);
   }
 }

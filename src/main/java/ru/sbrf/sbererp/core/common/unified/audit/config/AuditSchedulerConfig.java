@@ -11,8 +11,8 @@ import reactor.core.scheduler.Schedulers;
  * Event loop Netty нельзя блокировать вызовами {@code AuditService}: все обращения к библиотеке
  * выполняются на этом планировщике.
  */
-@Configuration
-public class AuditSchedulerConfig {
+@Configuration(proxyBeanMethods = false)
+public final class AuditSchedulerConfig {
 
   /**
    * Имя бина планировщика блокирующих вызовов аудита.

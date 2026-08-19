@@ -8,9 +8,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 import ru.sbrf.sbererp.core.common.unified.audit.exception.UnifiedAuditException;
+import ru.sbrf.sbererp.core.common.unified.audit.extractor.Extractor;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.RequestExtractor;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.ResponseExtractor;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ClassEventsHolder;
@@ -18,26 +20,17 @@ import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ConditionHold
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.EventHolder;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.Holder;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ParamHolder;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
-import ru.sbrf.sbererp.core.common.unified.audit.util.LogMessage;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExceptionMessages;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 
 /**
- * Enum, содержащий механизмы связывания параметров событий аудита с соответствующими
- * экстракторами.
+ * Сопоставляет ключ YAML ({@code request}, {@code response-header}, …) с {@link Extractor}.
  * <p>
- * Отвечает за привязку параметров событий (описанных в конфигурации) к реальным источникам данных
- * из HTTP-запросов и ответов через соответствующие экстракторы.
- * <p>
- * Каждый элемент перечисления представляет тип источника данных (например, тело запроса, заголовки,
- * код ответа) и реализует логику привязки конфигурации к соответствующему экстрактору.
- *
- * @see RequestExtractor
- * @see ResponseExtractor
- * @see Holder
- * @see ParamHolder
- * @see ConditionHolder
- * @see EventHolder
+ * {@link #configureAuditParameters} вызывается из {@code AuditEventBinderPostProcessor}
+ * для каждого контроллера из {@code audit.model}. После привязки вызывает {@link EventHolder#postCompile()}.
  */
+@Slf4j
 public enum AuditParameterBinder {
 
   /**
@@ -199,23 +192,23 @@ public enum AuditParameterBinder {
    * Метод по умолчанию, вызываемый при попытке установить экстракторы с неподдерживаемым типом.
    * Переопределяется в конкретных элементах перечисления.
    *
-   * @param holders       список параметров, для которых требуется установить экстракторы
-   * @param parametersMap карта параметров метода
+   * @param holders       список параметров, для которых требуется установить экстракторы.
+   * @param parametersMap карта параметров метода.
    * @throws UnifiedAuditException если операция не поддерживается
    */
   void setExtractors(List<? extends Holder> holders, Map<String, Parameter> parametersMap) {
-    throw new UnifiedAuditException(LogMessage.EXTRACTION_NOT_SUPPORTED);
+    throw new UnifiedAuditException(AuditExceptionMessages.EXTRACTION_NOT_SUPPORTED);
   }
 
   /**
    * Метод по умолчанию, вызываемый при попытке установить экстракторы с неподдерживаемым типом.
    * Переопределяется в конкретных элементах перечисления.
    *
-   * @param holders список параметров, для которых требуется установить экстракторы
+   * @param holders список параметров, для которых требуется установить экстракторы.
    * @throws UnifiedAuditException если операция не поддерживается
    */
   void setExtractors(List<? extends Holder> holders) {
-    throw new UnifiedAuditException(LogMessage.EXTRACTION_NOT_SUPPORTED);
+    throw new UnifiedAuditException(AuditExceptionMessages.EXTRACTION_NOT_SUPPORTED);
   }
 
   /**
@@ -224,8 +217,8 @@ public enum AuditParameterBinder {
    * Рекурсивно обходит всю иерархию классов (интерфейсы, суперклассы, абстрактные классы) и
    * связывает параметры аудита с соответствующими экстракторами.
    *
-   * @param classEventsHolder контейнер, хранящий информацию о событиях класса
-   * @param clazz             класс контроллера, для которого настраиваются параметры аудита
+   * @param classEventsHolder контейнер, хранящий информацию о событиях класса.
+   * @param clazz             класс контроллера, для которого настраиваются параметры аудита.
    */
   public static void configureAuditParameters(ClassEventsHolder classEventsHolder, Class<?> clazz) {
     Class<?>[] interfaces = ClassUtils.getAllInterfacesForClass(clazz);
@@ -238,16 +231,17 @@ public enum AuditParameterBinder {
       processMethodParameters(classEventsHolder, currentClass);
       currentClass = currentClass.getSuperclass();
     }
+    log.debug(AuditLogMessages.CONFIGURED_EXTRACTORS, clazz.getName());
   }
 
   /** Обрабатывает методы класса для поиска подходящих событий аудита. */
   private static void processMethodParameters(ClassEventsHolder classEventsHolder,
       Class<?> clazz) {
     for (Method method : clazz.getDeclaredMethods()) {
-      if (!classEventsHolder.getEventsMap().containsKey(method.getName())) {
+      if (!classEventsHolder.eventsMap().containsKey(method.getName())) {
         continue;
       }
-      List<EventHolder> eventHolders = classEventsHolder.getEventsMap().get(method.getName())
+      List<EventHolder> eventHolders = classEventsHolder.eventsMap().get(method.getName())
           .methodEventHolders();
       for (EventHolder eventHolder : eventHolders) {
         Map<String, Parameter> parametersMap = getParametersMap(method);
@@ -265,8 +259,8 @@ public enum AuditParameterBinder {
    * Определяет тип параметра (запрос/ответ) и делегирует установку экстрактора соответствующему
    * элементу перечисления.
    *
-   * @param event         описание события с параметрами
-   * @param parametersMap карта параметров метода
+   * @param event         описание события с параметрами.
+   * @param parametersMap карта параметров метода.
    */
   private static void bindParametersToExtractors(EventHolder event,
       Map<String, Parameter> parametersMap) {
@@ -275,7 +269,7 @@ public enum AuditParameterBinder {
       return;
     }
 
-    Map<String, List<ParamHolder>> paramsMap = event.getParamsMap();
+    Map<String, List<ParamHolder>> paramsMap = event.paramsMap();
 
     for (AuditParameterBinder binder : values()) {
       if (paramsMap.containsKey(binder.getParamsMapKey())) {
@@ -295,11 +289,11 @@ public enum AuditParameterBinder {
    * Устанавливает экстракторы для условий (например, "если код ответа == 200") и выполняет
    * финальную компиляцию события.
    *
-   * @param event         описание события с условиями
-   * @param parametersMap карта параметров метода
+   * @param event         описание события с условиями.
+   * @param parametersMap карта параметров метода.
    */
   private static void postCompile(EventHolder event, Map<String, Parameter> parametersMap) {
-    Map<String, List<ConditionHolder>> conditionsMap = event.getConditionsMap();
+    Map<String, List<ConditionHolder>> conditionsMap = event.conditionsMap();
     for (AuditParameterBinder binder : values()) {
       if (conditionsMap.containsKey(
           binder.getParamsMapKey())) {
@@ -320,7 +314,7 @@ public enum AuditParameterBinder {
    * <p>
    * Используется для сопоставления имен параметров из конфигурации с реальными параметрами метода.
    *
-   * @param method отраженный метод
+   * @param method отраженный метод.
    * @return хэш-мап с параметрами метода, где ключ — имя параметра
    */
   private static Map<String, Parameter> getParametersMap(Method method) {
@@ -343,6 +337,6 @@ public enum AuditParameterBinder {
   public String getParamsMapKey() {
     return this.name()
         .toLowerCase(Locale.ROOT)
-        .replace(Constants.CHAR_UNDERSCORE, Constants.CHAR_DASH);
+        .replace(AuditTextConstants.CHAR_UNDERSCORE, AuditTextConstants.CHAR_DASH);
   }
 }

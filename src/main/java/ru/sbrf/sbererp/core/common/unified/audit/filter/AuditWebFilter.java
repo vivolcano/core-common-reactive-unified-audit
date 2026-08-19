@@ -14,21 +14,21 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.AuditReactiveProperties;
 import ru.sbrf.sbererp.core.common.unified.audit.resolver.AuditEventResolver;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
-import ru.sbrf.sbererp.core.common.unified.audit.web.AuditExchangeAttributes;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExchangeAttributeNames;
 import ru.sbrf.sbererp.core.common.unified.audit.web.CachedBodyServerHttpRequest;
 import ru.sbrf.sbererp.core.common.unified.audit.web.CapturingServerHttpResponse;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditHttpConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 
 /**
- * WebFlux-фильтр аудита HTTP-запросов.
+ * Буферизует тела запроса/ответа и после {@link WebFilterChain} вызывает {@link AuditEventResolver}.
  * <p>
- * Совмещает роли servlet-фильтров кеширования тел и {@code OncePerRequestFilter}: буферизует тело
- * запроса (кроме GET) и ответа, затем после завершения цепочки вызывает
- * {@link AuditEventResolver}. Аудит выполняется и при успехе, и при ошибке.
+ * GET не читает request body. Лимит — {@link AuditReactiveProperties#maxBodyBytes()}.
+ * Аудит выполняется и при {@code onError} цепочки.
  */
 @Slf4j
 @RequiredArgsConstructor
-public class AuditWebFilter implements WebFilter {
+public final class AuditWebFilter implements WebFilter {
 
   /**
    * Число буферов тела запроса, запрашиваемых у Netty за один раз.
@@ -41,14 +41,19 @@ public class AuditWebFilter implements WebFilter {
   /**
    * Кеширует тела, пропускает цепочку и отправляет событие аудита.
    *
-   * @param exchange текущий обмен
-   * @param chain    оставшаяся цепочка фильтров
+   * @param exchange текущий обмен.
+   * @param chain    оставшаяся цепочка фильтров.
    * @return сигнал завершения
    */
   @Override
   @NonNull
   public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull WebFilterChain chain) {
     if (isGetRequest(exchange)) {
+      log.debug(
+          AuditLogMessages.SKIPPING_REQUEST_BODY_CACHE,
+          exchange.getRequest().getMethod(),
+          exchange.getRequest().getPath()
+      );
       return filterWithResponseCapture(exchange, chain);
     }
     return cacheRequestBody(exchange)
@@ -58,19 +63,19 @@ public class AuditWebFilter implements WebFilter {
   /**
    * Проверяет, что метод запроса — GET и тело кешировать не нужно.
    *
-   * @param exchange текущий обмен
+   * @param exchange текущий обмен.
    * @return {@code true}, если метод GET
    */
   private boolean isGetRequest(ServerWebExchange exchange) {
     HttpMethod method = exchange.getRequest().getMethod();
     return Objects.equals(HttpMethod.GET, method)
-        || Constants.GET_METHOD.equalsIgnoreCase(method.name());
+        || AuditHttpConstants.GET_METHOD.equalsIgnoreCase(method.name());
   }
 
   /**
    * Читает тело запроса в память с ограничением размера.
    *
-   * @param exchange текущий обмен
+   * @param exchange текущий обмен.
    * @return байты тела или пустой массив при отсутствии тела/превышении лимита
    */
   private Mono<byte[]> cacheRequestBody(ServerWebExchange exchange) {
@@ -79,16 +84,16 @@ public class AuditWebFilter implements WebFilter {
             reactiveProperties.maxBodyBytes()
         )
         .map(this::readAndRelease)
-        .defaultIfEmpty(AuditExchangeAttributes.EMPTY_BODY)
+        .defaultIfEmpty(AuditExchangeAttributeNames.EMPTY_BODY)
         .onErrorResume(DataBufferLimitException.class, this::emptyBodyOnLimit);
   }
 
   /**
    * Подменяет запрос обёрткой с кэшем тела и продолжает цепочку.
    *
-   * @param exchange   исходный обмен
-   * @param chain      цепочка фильтров
-   * @param cachedBody кэшированное тело
+   * @param exchange   исходный обмен.
+   * @param chain      цепочка фильтров.
+   * @param cachedBody кэшированное тело.
    * @return сигнал завершения
    */
   private Mono<Void> filterWithCachedRequest(
@@ -98,15 +103,21 @@ public class AuditWebFilter implements WebFilter {
     CachedBodyServerHttpRequest cachedRequest =
         new CachedBodyServerHttpRequest(exchange.getRequest(), cachedBody);
     ServerWebExchange mutated = exchange.mutate().request(cachedRequest).build();
-    mutated.getAttributes().put(AuditExchangeAttributes.CACHED_REQUEST_BODY, cachedBody);
+    mutated.getAttributes().put(AuditExchangeAttributeNames.CACHED_REQUEST_BODY, cachedBody);
+    log.debug(
+        AuditLogMessages.CACHED_REQUEST_BODY,
+        cachedBody.length,
+        mutated.getRequest().getMethod(),
+        mutated.getRequest().getPath()
+    );
     return filterWithResponseCapture(mutated, chain);
   }
 
   /**
    * Оборачивает ответ декоратором захвата тела, выполняет цепочку и аудирует результат.
    *
-   * @param exchange текущий обмен
-   * @param chain    цепочка фильтров
+   * @param exchange текущий обмен.
+   * @param chain    цепочка фильтров.
    * @return сигнал завершения
    */
   private Mono<Void> filterWithResponseCapture(ServerWebExchange exchange, WebFilterChain chain) {
@@ -121,37 +132,49 @@ public class AuditWebFilter implements WebFilter {
   /**
    * Сохраняет тело ответа в атрибуты обмена и отправляет событие аудита.
    *
-   * @param exchange  обмен с кэшем запроса
-   * @param capturing декоратор ответа
+   * @param exchange  обмен с кэшем запроса.
+   * @param capturing декоратор ответа.
    * @return сигнал завершения аудита
    */
   private Mono<Void> afterChain(
       ServerWebExchange exchange,
       CapturingServerHttpResponse capturing) {
+    byte[] responseBody = capturing.capturedBody();
     exchange.getAttributes()
-        .put(AuditExchangeAttributes.CACHED_RESPONSE_BODY, capturing.capturedBody());
+        .put(AuditExchangeAttributeNames.CACHED_RESPONSE_BODY, responseBody);
+    log.debug(
+        AuditLogMessages.CAPTURED_RESPONSE_BODY,
+        responseBody.length,
+        exchange.getRequest().getMethod(),
+        exchange.getRequest().getPath()
+    );
     return auditEventResolver.audit(exchange);
   }
 
   /**
    * Выполняет аудит при ошибке цепочки и пробрасывает исходное исключение.
    *
-   * @param exchange  обмен
-   * @param capturing декоратор ответа
-   * @param error     ошибка цепочки
+   * @param exchange  обмен.
+   * @param capturing декоратор ответа.
+   * @param error     ошибка цепочки.
    * @return сигнал ошибки после аудита
    */
   private Mono<Void> auditThenRethrow(
       ServerWebExchange exchange,
       CapturingServerHttpResponse capturing,
       Throwable error) {
+    log.debug(
+        AuditLogMessages.AUDITING_FAILED_REQUEST,
+        exchange.getRequest().getMethod(),
+        exchange.getRequest().getPath()
+    );
     return afterChain(exchange, capturing).then(Mono.error(error));
   }
 
   /**
    * Копирует байты буфера и освобождает его.
    *
-   * @param dataBuffer буфер тела запроса
+   * @param dataBuffer буфер тела запроса.
    * @return копия байтов
    */
   private byte[] readAndRelease(DataBuffer dataBuffer) {
@@ -164,11 +187,11 @@ public class AuditWebFilter implements WebFilter {
   /**
    * Возвращает пустое тело, если лимит буферизации превышен.
    *
-   * @param exception ошибка лимита
+   * @param exception ошибка лимита.
    * @return пустой массив байтов
    */
   private Mono<byte[]> emptyBodyOnLimit(DataBufferLimitException exception) {
-    log.warn("Тело запроса превысило лимит аудита и не будет извлечено: {}", exception.getMessage());
-    return Mono.just(AuditExchangeAttributes.EMPTY_BODY);
+    log.warn(AuditLogMessages.REQUEST_BODY_EXCEEDS_LIMIT, exception);
+    return Mono.just(AuditExchangeAttributeNames.EMPTY_BODY);
   }
 }

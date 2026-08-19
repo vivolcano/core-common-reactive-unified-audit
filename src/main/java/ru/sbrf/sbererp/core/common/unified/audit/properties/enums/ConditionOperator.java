@@ -1,15 +1,17 @@
 package ru.sbrf.sbererp.core.common.unified.audit.properties.enums;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 
 /**
- * Операторы сравнения для условий фильтрации событий аудита.
- * Поддерживают сравнение значений, коллекций и строк.
+ * Операторы YAML {@code conditions.*.operator}.
+ * <p>
+ * {@link #evaluate(String, List)} сравнивает строку, извлечённую экстрактором, со списком
+ * ожидаемых значений. Числа парсятся как {@code double}, JSON-массивы — по текстовому представлению.
  */
 public enum ConditionOperator {
   EQUALS((actual, expected) -> {
@@ -174,7 +176,7 @@ public enum ConditionOperator {
     return result;
   });
 
-  private static final Logger LOG = LoggerFactory.getLogger(ConditionOperator.class); // Исправлено: LOG вместо log
+  private static final Logger LOG = LoggerFactory.getLogger(ConditionOperator.class);
   private final BiFunction<String, List<String>, Boolean> evaluator;
 
   ConditionOperator(BiFunction<String, List<String>, Boolean> evaluator) {
@@ -182,20 +184,23 @@ public enum ConditionOperator {
   }
 
   /**
-   * Выполняет проверку условия с переданными значениями.
+   * Сравнивает извлечённую строку со списком expected из YAML.
+   *
+   * @param actualValue    результат экстрактора; {@code null} допустим.
+   * @param expectedValues значения из {@code conditions.*.values}; {@code null} → {@code false}.
+   * @return {@code true}, если оператор выполняется
    */
   public boolean evaluate(String actualValue, List<String> expectedValues) {
     if (Objects.isNull(expectedValues)) {
-      LOG.debug("Operator {}: expectedValues is null", this.name());
+      LOG.debug(AuditLogMessages.CONDITION_OPERATOR_NULL_EXPECTED, this.name());
       return false;
     }
 
-    // Дополнительная валидация для COLL_SIZE операторов
     if (this.name().startsWith("COLL_SIZE_") && expectedValues.size() == 1) {
       try {
         Integer.parseInt(expectedValues.getFirst());
       } catch (NumberFormatException e) {
-        LOG.debug("Operator {}: expected value '{}' is not a valid integer",
+        LOG.debug(AuditLogMessages.CONDITION_OPERATOR_INVALID_INTEGER,
             this.name(), expectedValues.getFirst());
         return false;
       }
@@ -207,8 +212,8 @@ public enum ConditionOperator {
   /**
    * Проверяет, что строка содержит все ожидаемые фрагменты.
    *
-   * @param actual   фактическое значение
-   * @param expected ожидаемые фрагменты
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые фрагменты.
    * @return {@code true}, если все фрагменты содержатся
    */
   private static boolean containsAll(String actual, List<String> expected) {
@@ -221,8 +226,8 @@ public enum ConditionOperator {
   /**
    * Проверяет, что строка содержит хотя бы один ожидаемый фрагмент.
    *
-   * @param actual   фактическое значение
-   * @param expected ожидаемые фрагменты
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые фрагменты.
    * @return {@code true}, если найден хотя бы один фрагмент
    */
   private static boolean containsAny(String actual, List<String> expected) {
@@ -235,8 +240,8 @@ public enum ConditionOperator {
   /**
    * Проверяет, что строка не содержит ни одного ожидаемого фрагмента.
    *
-   * @param actual   фактическое значение
-   * @param expected ожидаемые фрагменты
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые фрагменты.
    * @return {@code true}, если ни один фрагмент не содержится
    */
   private static boolean containsNone(String actual, List<String> expected) {
@@ -249,8 +254,8 @@ public enum ConditionOperator {
   /**
    * Проверяет, что строка начинается со всех ожидаемых префиксов.
    *
-   * @param actual   фактическое значение
-   * @param expected ожидаемые префиксы
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые префиксы.
    * @return {@code true}, если все префиксы совпали
    */
   private static boolean startsWithAll(String actual, List<String> expected) {
@@ -263,8 +268,8 @@ public enum ConditionOperator {
   /**
    * Проверяет, что строка заканчивается всеми ожидаемыми суффиксами.
    *
-   * @param actual   фактическое значение
-   * @param expected ожидаемые суффиксы
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые суффиксы.
    * @return {@code true}, если все суффиксы совпали
    */
   private static boolean endsWithAll(String actual, List<String> expected) {
@@ -277,7 +282,7 @@ public enum ConditionOperator {
   /**
    * Проверяет, что значение — пустой JSON-массив.
    *
-   * @param actual фактическое значение
+   * @param actual фактическое значение.
    * @return {@code true}, если массив пуст
    */
   private static boolean isJsonArrayEmpty(String actual) {
@@ -297,7 +302,7 @@ public enum ConditionOperator {
   /**
    * Проверяет, что значение — непустой JSON-массив.
    *
-   * @param actual фактическое значение
+   * @param actual фактическое значение.
    * @return {@code true}, если массив содержит элементы
    */
   private static boolean isJsonArrayNotEmpty(String actual) {
@@ -311,12 +316,14 @@ public enum ConditionOperator {
     return false;
   }
   private static void logOperation(String operatorName, boolean result, String actual, List<String> expected) {
-    if (LOG.isDebugEnabled()) { // Исправлено: LOG вместо log
-      String actualPreview = truncateForLog(actual);
-      String expectedPreview = truncateForLog(Objects.isNull(expected) ? "null" : expected.toString());
-
-      LOG.debug("Operator: {}, Result: {}, Actual: '{}', Expected: {}", // Исправлено: LOG вместо log
-          operatorName, result, actualPreview, expectedPreview);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          AuditLogMessages.CONDITION_OPERATOR_EVALUATED,
+          operatorName,
+          result,
+          truncateForLog(actual),
+          truncateForLog(Objects.isNull(expected) ? "null" : expected.toString())
+      );
     }
   }
 
@@ -337,9 +344,9 @@ public enum ConditionOperator {
   /**
    * Сравнивает размер JSON-массива с ожидаемым значением.
    *
-   * @param actual   фактическое значение
-   * @param expected список из одного ожидаемого размера
-   * @param mode     0 равно, 1 больше, -1 меньше, 2 больше или равно, -2 меньше или равно
+   * @param actual   фактическое значение.
+   * @param expected список из одного ожидаемого размера.
+   * @param mode     0 равно, 1 больше, -1 меньше, 2 больше или равно, -2 меньше или равно.
    * @return результат сравнения
    */
   private static boolean compareCollectionSize(String actual, List<String> expected, int mode) {

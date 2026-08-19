@@ -9,55 +9,50 @@ import ru.sbrf.sbererp.core.common.unified.audit.adapter.EventAdapter;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.AuditClientProperties;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ParamHolder;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Компонент-конвертер, отвечающий за преобразование событий аудита из внутреннего формата
- * {@link EventAdapter} во внешний формат модели событий аудита SBT {@link Event}.
+ * Конвертирует {@link EventAdapter} в модель клиента SBT {@link Event}.
+ * <p>
+ * Шапку метамодели (version/module/sourceSystem) берёт из {@link AuditClientProperties}.
  */
 @Component
 @RequiredArgsConstructor
-public class EventConverter {
+public final class EventConverter {
 
-  /**
-   * Свойства клиента аудита, используемые для заполнения шапики события.
-   */
   private final AuditClientProperties properties;
 
   /**
-   * Метод преобразования события аудита из внутреннего формата в формат библиотеки SBT.
+   * Собирает {@link Event} из адаптера и {@link AuditClientProperties#metaModel()}.
    *
-   * @param baseEvent исходное внутреннее представление события аудита
-   * @param <T>       тип расширенного адаптера события, наследуемого от {@link EventAdapter}
-   * @return экземпляр события в стандартной модели SBT
+   * @param baseEvent внутреннее событие после резолвера.
+   * @return модель SBT для {@code AuditService#audit}
    */
-  public <T extends EventAdapter> Event convert(T baseEvent) {
+  public Event convert(EventAdapter baseEvent) {
     return Event.builder()
-        .name(baseEvent.getEventName())
+        .name(baseEvent.eventName())
         .metamodelVersion(properties.metaModel().version())
         .module(properties.metaModel().module())
-        .nodeId(baseEvent.getNodeId())
-        .userNode(baseEvent.getUserNode())
-        .session(baseEvent.getSession())
+        .nodeId(baseEvent.nodeId())
+        .userNode(baseEvent.userNode())
+        .session(baseEvent.session())
         .sourceSystem(properties.metaModel().sourceSystem())
-        .tags(baseEvent.getTags())
-        .userLogin(baseEvent.getUserLogin())
-        .userName(baseEvent.getUserName())
-        .requestId(baseEvent.getRequestId())
-        .params(createParams(baseEvent.getParams()))
+        .tags(List.of())
+        .userLogin(baseEvent.userLogin())
+        .userName(baseEvent.userName())
+        .requestId(baseEvent.requestId())
+        .params(createParams(baseEvent.params()))
         .isSuccess(baseEvent.isSuccess())
         .build();
   }
 
   /**
-   * Приватный вспомогательный метод для создания коллекций параметров события.
-   * <p>
-   * Преобразует карту параметров в стандартный формат коллекции параметров SBT.
+   * Копирует карту адаптера в {@link EventParams}.
    *
-   * @param params карта параметров события, где ключ — это объект {@link ParamHolder},
-   *               а значение — строковое представление параметра
-   * @return коллекция стандартных параметров SBT
+   * @param params ключ — YAML-параметр, значение — строка экстрактора.
+   * @return коллекция SBT; пустая, если карта пустая
    */
   private EventParams createParams(Map<ParamHolder, String> params) {
     return params.entrySet().stream()
@@ -66,15 +61,13 @@ public class EventConverter {
   }
 
   /**
-   * Приватный вспомогательный метод для создания отдельного параметра события.
-   *
-   * @param event объект параметра внутреннего представления
-   * @param value строковое значение параметра
-   * @return стандартный параметр SBT
+   * @param event YAML-параметр.
+   * @param value извлечённое значение.
+   * @return элемент {@link EventParams}
    */
   private EventParam createParam(ParamHolder event, String value) {
     return EventParam.builder()
-        .name(event.getName())
+        .name(event.name())
         .value(value)
         .build();
   }

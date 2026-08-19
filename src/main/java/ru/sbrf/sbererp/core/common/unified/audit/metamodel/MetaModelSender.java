@@ -14,21 +14,19 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import ru.sbrf.sbererp.core.common.unified.audit.config.AuditSchedulerConfig;
 import ru.sbrf.sbererp.core.common.unified.audit.converter.MetaModelConverter;
-import ru.sbrf.sbererp.core.common.unified.audit.util.Constants;
-import ru.sbrf.sbererp.core.common.unified.audit.util.LogMessage;
-import ru.sbrf.sbererp.core.common.unified.audit.util.ObjectToFormatStringUtil;
-import ru.sbrf.sbererp.core.common.unified.audit.util.enums.ApplicationGeneralError;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditPrettyJsonUtils;
 
 /**
- * Класс, отвечающий за регистрацию метамодели событий аудита в АС Единый Аудит.
+ * Регистрирует метамодель в АС Единый Аудит на {@link ApplicationReadyEvent}.
  * <p>
- * После запуска приложения собирает метаданные событий с помощью {@link MetaModelConverter},
- * формирует объект {@link Metamodel} и отправляет его в АС Единый Аудит через {@link AuditService}.
- * Регистрация выполняется один раз при старте приложения на {@code boundedElastic}.
+ * {@link AuditService#register} вызывается на {@code unifiedAuditElasticScheduler}.
+ * Ошибка регистрации логируется и не валит старт приложения.
  */
 @Slf4j
 @Component
-public class MetaModelSender {
+public final class MetaModelSender {
 
   private final AuditService auditService;
   private final MetaModelConverter metaModelConverter;
@@ -37,9 +35,9 @@ public class MetaModelSender {
   /**
    * Создаёт отправителя метамодели.
    *
-   * @param auditService       блокирующий клиент аудита
-   * @param metaModelConverter конвертер метамодели
-   * @param auditScheduler     elastic-планировщик
+   * @param auditService       блокирующий клиент аудита.
+   * @param metaModelConverter конвертер метамодели.
+   * @param auditScheduler     elastic-планировщик.
    */
   public MetaModelSender(
       AuditService auditService,
@@ -60,16 +58,28 @@ public class MetaModelSender {
   @EventListener(ApplicationReadyEvent.class)
   public void register() {
     Metamodel metamodel = metaModelConverter.create();
-    log.debug(ObjectToFormatStringUtil.getFormatString(
-        metamodel, Constants.ERROR_CONVERT_METAMODEL_TO_STRING));
+    int eventCount = metamodel.getEventMetaInfos() == null
+        ? 0
+        : metamodel.getEventMetaInfos().size();
     log.info(
-        LogMessage.METAMODEL_REGISTERING_START,
+        AuditLogMessages.METAMODEL_REGISTERING,
         metamodel.getMetamodelVersion(),
         metamodel.getModule(),
-        metamodel.getEventMetaInfos().stream()
-            .map(EventMetaInfo::getName)
-            .collect(Collectors.joining(Constants.COMMA))
+        eventCount
     );
+    if (log.isDebugEnabled()) {
+      String eventNames = metamodel.getEventMetaInfos() == null
+          ? AuditTextConstants.EMPTY_STRING
+          : metamodel.getEventMetaInfos().stream()
+              .map(EventMetaInfo::getName)
+              .collect(Collectors.joining(AuditTextConstants.COMMA));
+      log.debug(AuditLogMessages.METAMODEL_EVENT_NAMES, eventNames);
+      log.debug(
+          AuditLogMessages.AUDIT_METAMODEL_PAYLOAD,
+          AuditPrettyJsonUtils.getFormatString(
+              metamodel, AuditLogMessages.FAILED_TO_SERIALIZE_METAMODEL)
+      );
+    }
     Mono.fromCallable(() -> auditService.register(metamodel))
         .subscribeOn(auditScheduler)
         .doOnNext(this::logRegisterSuccess)
@@ -81,26 +91,25 @@ public class MetaModelSender {
   /**
    * Логирует успешную регистрацию метамодели.
    *
-   * @param hash хеш зарегистрированной метамодели
+   * @param hash хеш зарегистрированной метамодели.
    */
   private void logRegisterSuccess(String hash) {
-    log.info(LogMessage.METAMODEL_REGISTERING_SUCCESS, hash);
+    log.info(AuditLogMessages.METAMODEL_REGISTERED, hash);
   }
 
   /**
    * Логирует ошибку регистрации метамодели.
    *
-   * @param throwable ошибка клиента
+   * @param throwable ошибка клиента.
    */
   private void logRegisterError(Throwable throwable) {
-    log.error(LogMessage.METAMODEL_REGISTERING_FAIL, throwable.getMessage(), throwable);
-    log.error(ApplicationGeneralError.FAILED_SEND_AUDIT_META_MODEL.getMessage());
+    log.error(AuditLogMessages.METAMODEL_REGISTER_FAILED, throwable);
   }
 
   /**
    * Поглощает ошибку регистрации, чтобы старт приложения не падал из-за аудита.
    *
-   * @param throwable ошибка регистрации
+   * @param throwable ошибка регистрации.
    * @return пустой сигнал
    */
   private Mono<String> swallowRegisterError(Throwable throwable) {

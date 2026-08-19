@@ -7,10 +7,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.MetaModelTitleHolder;
 
 /**
- * Свойства клиента Единого аудита.
+ * YAML {@code audit.client}: map для билдера SBT-клиента и заголовок метамодели.
  *
- * @param config    карта свойств блокирующей библиотеки клиента
- * @param metaModel заголовок метамодели (версия, модуль, подсистема, источник)
+ * @param config    свойства {@code audit.client.config}; {@code null} → пустая карта.
+ * @param metaModel обязательный {@code audit.client.meta-model}.
  */
 @ConfigurationProperties(prefix = "audit.client")
 public record AuditClientProperties(Map<String, String> config, MetaModelTitleHolder metaModel) {
@@ -18,8 +18,8 @@ public record AuditClientProperties(Map<String, String> config, MetaModelTitleHo
   /**
    * Нормализует карту свойств и проверяет наличие заголовка метамодели.
    *
-   * @param config    свойства клиента; пустая карта, если значение не задано
-   * @param metaModel заголовок метамодели
+   * @param config    свойства клиента; пустая карта, если значение не задано.
+   * @param metaModel заголовок метамодели.
    */
   public AuditClientProperties {
     config = ObjectUtils.isEmpty(config) ? Map.of() : Map.copyOf(config);

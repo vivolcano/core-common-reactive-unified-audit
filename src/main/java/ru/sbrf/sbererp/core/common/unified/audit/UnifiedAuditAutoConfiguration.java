@@ -9,11 +9,10 @@ import ru.sbrf.sbererp.core.common.unified.audit.properties.AuditEventsPropertie
 import ru.sbrf.sbererp.core.common.unified.audit.properties.AuditReactiveProperties;
 
 /**
- * Класс авто-конфигурации для реактивного модуля аудита.
+ * Spring Boot auto-config модуля: только {@link ConditionalOnWebApplication.Type#REACTIVE}.
  * <p>
- * Авто-конфигурация осуществляется при помощи файла
- * {@code org.springframework.boot.autoconfigure.AutoConfiguration.imports} в ресурсах и включается
- * только для WebFlux-приложения.
+ * Регистрируется через {@code META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports}.
+ * Сканирует {@code ru.sbrf.sbererp.core.common.unified.audit} и биндит properties.
  */
 @AutoConfiguration(afterName = "org.springframework.boot.webflux.autoconfigure.WebFluxAutoConfiguration")
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.REACTIVE)
@@ -23,5 +22,5 @@ import ru.sbrf.sbererp.core.common.unified.audit.properties.AuditReactivePropert
     AuditEventsProperties.class,
     AuditReactiveProperties.class
 })
-public class UnifiedAuditAutoConfiguration {
+public final class UnifiedAuditAutoConfiguration {
 }

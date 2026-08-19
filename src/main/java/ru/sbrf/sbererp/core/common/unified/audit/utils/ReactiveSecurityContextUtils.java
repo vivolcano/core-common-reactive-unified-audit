@@ -1,4 +1,4 @@
-package ru.sbrf.sbererp.core.common.unified.audit.resolver.util;
+package ru.sbrf.sbererp.core.common.unified.audit.utils;
 
 import java.util.Map;
 import java.util.Objects;
@@ -9,23 +9,22 @@ import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-import ru.sbrf.sbererp.core.common.unified.audit.web.AuditExchangeAttributes;
 
 /**
- * Утилиты извлечения claims из реактивного SecurityContext.
+ * Claims из {@link ReactiveSecurityContextHolder} и атрибут обмена {@code unified.audit.tokenParams}.
  */
 @UtilityClass
-public class SecurityContextUtil {
+public final class ReactiveSecurityContextUtils {
 
   /**
    * Читает карту параметров токена, ранее положенную фильтром/резолвером в атрибуты обмена.
    *
-   * @param exchange текущий обмен
+   * @param exchange текущий обмен.
    * @return карта параметров или пустая карта
    */
   @SuppressWarnings("unchecked")
   public static Map<String, Object> getTokenParamsMap(ServerWebExchange exchange) {
-    Object stored = exchange.getAttribute(AuditExchangeAttributes.TOKEN_PARAMS);
+    Object stored = exchange.getAttribute(AuditExchangeAttributeNames.TOKEN_PARAMS);
     return stored instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
   }
 
@@ -36,14 +35,14 @@ public class SecurityContextUtil {
    */
   public static Mono<Map<String, Object>> loadTokenParamsMap() {
     return ReactiveSecurityContextHolder.getContext()
-        .map(SecurityContextUtil::extractDetails)
+        .map(ReactiveSecurityContextUtils::extractDetails)
         .defaultIfEmpty(Map.of());
   }
 
   /**
    * Достаёт {@code details} аутентификации, если это карта.
    *
-   * @param context контекст безопасности
+   * @param context контекст безопасности.
    * @return карта details или пустая карта
    */
   @SuppressWarnings("unchecked")
@@ -58,15 +57,15 @@ public class SecurityContextUtil {
   /**
    * Сохраняет карту claims в атрибуты обмена для синхронных экстракторов.
    *
-   * @param exchange текущий обмен
-   * @param params   карта claims
+   * @param exchange текущий обмен.
+   * @param params   карта claims.
    * @return тот же обмен
    */
   public static ServerWebExchange storeTokenParams(
       ServerWebExchange exchange,
       Map<String, Object> params) {
     Map<String, Object> safeParams = Objects.isNull(params) ? Map.of() : params;
-    exchange.getAttributes().put(AuditExchangeAttributes.TOKEN_PARAMS, safeParams);
+    exchange.getAttributes().put(AuditExchangeAttributeNames.TOKEN_PARAMS, safeParams);
     return exchange;
   }
 }

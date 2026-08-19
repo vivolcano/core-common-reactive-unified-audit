@@ -17,16 +17,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Класс-конвертер, предназначенный для создания метамодели событий аудита.
+ * Собирает {@link Metamodel} из {@link AuditEventsProperties} и заголовка {@link AuditClientProperties}.
  * <p>
- * Метамодель описывает структуру событий, их параметры и свойства, формируемые для передачи в АС Единый аудит.
- * Преобразует внутреннюю структуру данных (объекты {@link EventHolder}, списки параметров и другие данные)
- * в стандартные структуры метамодели SBT: {@link Metamodel}, {@link EventMetaInfo}, {@link MetaInfoParam}.
+ * Вызывается один раз из {@code MetaModelSender} на {@code ApplicationReadyEvent}.
  */
 @Primary
 @Component
 @RequiredArgsConstructor
-public class MetaModelConverter {
+public final class MetaModelConverter {
 
   /**
    * Свойства событий аудита, содержащие метаданные событий и параметры.
@@ -57,7 +55,7 @@ public class MetaModelConverter {
    * @return коллекция объектов {@link EventMetaInfo}
    */
   private EventMetaInfos createEventMetaInfos() {
-    return this.config.getMetamodelEvents().stream()
+    return this.config.metamodelEvents().stream()
         .map(this::createMetaInfoParams)
         .collect(Collectors.toCollection(EventMetaInfos::new));
   }
@@ -65,24 +63,24 @@ public class MetaModelConverter {
   /**
    * Преобразует внутреннее представление события в объект метаданных события для АС Единый Аудит.
    *
-   * @param event внутреннее представление события
+   * @param event внутреннее представление события.
    * @return объект метаданных события SBT
    */
   private EventMetaInfo createMetaInfoParams(EventHolder event) {
     return EventMetaInfo.builder()
-        .name(event.getName())
-        .description(event.getDescription())
-        .mode(event.getMode())
-        .success(event.getSuccess())
+        .name(event.name())
+        .description(event.description())
+        .mode(event.mode())
+        .success(event.success())
         .subsystem(properties.metaModel().subsystem())
-        .metaInfoParams(toMetaInfoParams(event.getParams()))
+        .metaInfoParams(toMetaInfoParams(event.params()))
         .build();
   }
 
   /**
    * Преобразует список внутренних параметров события в коллекцию стандартных параметров для АС Единый Аудит.
    *
-   * @param params список внутренних параметров события
+   * @param params список внутренних параметров события.
    * @return коллекция стандартных параметров SBT
    */
   private MetaInfoParams toMetaInfoParams(List<ParamHolder> params) {
@@ -94,13 +92,13 @@ public class MetaModelConverter {
   /**
    * Преобразует один внутренний параметр события в стандартный параметр для АС Единый Аудит.
    *
-   * @param param внутренний параметр события
+   * @param param внутренний параметр события.
    * @return стандартный параметр SBT
    */
   private MetaInfoParam toMetaInfoParam(ParamHolder param) {
     return MetaInfoParam.builder()
-        .name(param.getName())
-        .description(param.getDescription())
+        .name(param.name())
+        .description(param.description())
         .build();
   }
 }

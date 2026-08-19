@@ -15,7 +15,7 @@ import ru.sbrf.sbererp.core.common.unified.audit.converter.EventConverter;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.AuditClientProperties;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.MetaModelTitleHolder;
 
-class AuditClientServiceImplTest {
+final class AuditClientServiceImplTest {
 
   @Test
   void sendEventRunsOnElasticScheduler() {
