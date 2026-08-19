@@ -5,6 +5,7 @@ import java.util.Objects;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.MetaModelTitleHolder;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditConfigurationFieldNames;
 
 /**
  * YAML {@code audit.client}: map для билдера SBT-клиента и заголовок метамодели.
@@ -12,7 +13,7 @@ import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.MetaModelTitl
  * @param config    свойства {@code audit.client.config}; {@code null} → пустая карта.
  * @param metaModel обязательный {@code audit.client.meta-model}.
  */
-@ConfigurationProperties(prefix = "audit.client")
+@ConfigurationProperties(prefix = AuditConfigurationFieldNames.AUDIT_CLIENT_PREFIX)
 public record AuditClientProperties(Map<String, String> config, MetaModelTitleHolder metaModel) {
 
   /**

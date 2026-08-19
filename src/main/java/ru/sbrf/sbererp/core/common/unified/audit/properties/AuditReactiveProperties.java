@@ -7,6 +7,9 @@ import org.springframework.http.server.PathContainer;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditConfigurationFieldNames;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditHttpConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditNumericConstants;
 
 /**
  * YAML {@code audit.reactive}: лимит кэша тел и пути, которые фильтр аудита пропускает.
@@ -14,25 +17,27 @@ import org.springframework.web.util.pattern.PathPatternParser;
  * @param maxBodySize          максимум тела для аудита; {@code null} → {@link #DEFAULT_MAX_BODY_SIZE}.
  * @param excludePathPatterns  ant-style пути без аудита; {@code null} → {@link #DEFAULT_EXCLUDE_PATH_PATTERNS}.
  */
-@ConfigurationProperties(prefix = "audit.reactive")
+@ConfigurationProperties(prefix = AuditConfigurationFieldNames.AUDIT_REACTIVE_PREFIX)
 public record AuditReactiveProperties(DataSize maxBodySize, List<String> excludePathPatterns) {
 
   /**
    * Значение лимита тела по умолчанию.
    */
-  public static final DataSize DEFAULT_MAX_BODY_SIZE = DataSize.ofMegabytes(1);
+  public static final DataSize DEFAULT_MAX_BODY_SIZE = DataSize.ofMegabytes(
+      AuditNumericConstants.DEFAULT_MAX_BODY_SIZE_MEGABYTES
+  );
 
   /**
    * Служебные пути, которые не аудируются и не копируют тела.
    */
   public static final List<String> DEFAULT_EXCLUDE_PATH_PATTERNS = List.of(
-      "/actuator/**",
-      "/swagger-ui.html",
-      "/swagger-ui/**",
-      "/v3/api-docs",
-      "/v3/api-docs/**",
-      "/webjars/**",
-      "/favicon.ico"
+      AuditHttpConstants.ACTUATOR_ANT_PATTERN,
+      AuditHttpConstants.SWAGGER_UI_HTML,
+      AuditHttpConstants.SWAGGER_UI_ANT_PATTERN,
+      AuditHttpConstants.V3_API_DOCS,
+      AuditHttpConstants.V3_API_DOCS_ANT_PATTERN,
+      AuditHttpConstants.WEBJARS_ANT_PATTERN,
+      AuditHttpConstants.FAVICON_ICO
   );
 
   /**

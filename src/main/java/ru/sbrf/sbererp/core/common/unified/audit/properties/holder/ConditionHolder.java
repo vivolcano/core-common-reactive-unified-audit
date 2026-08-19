@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.Name;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.Extractor;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.enums.ConditionOperator;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditConfigurationFieldNames;
 
 /**
  * YAML-условие события. {@code field} биндится в {@code name}; экстрактор ставит биндер.
@@ -35,7 +36,7 @@ public record ConditionHolder(
    */
   @ConstructorBinding
   public ConditionHolder(
-      @Name("field") String name,
+      @Name(AuditConfigurationFieldNames.FIELD) String name,
       ConditionOperator operator,
       List<String> values) {
     this(

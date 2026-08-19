@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
 import org.apache.commons.lang3.ObjectUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.web.server.ServerWebExchange;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditJsonExtractionUtils;
@@ -23,7 +24,7 @@ public enum ResponseExtractor implements Extractor {
     @Override
     public String extractResponse(ServerWebExchange exchange, Holder holder) {
       HttpStatusCode status = exchange.getResponse().getStatusCode();
-      int value = Objects.isNull(status) ? 200 : status.value();
+      int value = Objects.isNull(status) ? HttpStatus.OK.value() : status.value();
       return String.valueOf(value);
     }
   },

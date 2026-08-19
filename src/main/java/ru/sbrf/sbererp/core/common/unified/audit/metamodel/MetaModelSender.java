@@ -16,6 +16,7 @@ import ru.sbrf.sbererp.core.common.unified.audit.config.AuditSchedulerConfig;
 import ru.sbrf.sbererp.core.common.unified.audit.converter.MetaModelConverter;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditNumericConstants;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditPrettyJsonUtils;
 
 /**
@@ -54,12 +55,12 @@ public final class MetaModelSender {
    * Создает метамодель, регистрирует её в системе аудита и логирует хэш метамодели. Если
    * регистрация не удалась — логирует ошибку.
    */
-  @Order(1)
+  @Order(AuditNumericConstants.METAMODEL_REGISTER_ORDER)
   @EventListener(ApplicationReadyEvent.class)
   public void register() {
     Metamodel metamodel = metaModelConverter.create();
     int eventCount = metamodel.getEventMetaInfos() == null
-        ? 0
+        ? AuditNumericConstants.ZERO
         : metamodel.getEventMetaInfos().size();
     log.info(
         AuditLogMessages.METAMODEL_REGISTERING,

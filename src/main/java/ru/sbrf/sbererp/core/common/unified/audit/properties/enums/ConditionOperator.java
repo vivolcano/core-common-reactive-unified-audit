@@ -6,6 +6,8 @@ import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditNumericConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
 
 /**
  * Операторы YAML {@code conditions.*.operator}.
@@ -15,13 +17,15 @@ import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
  */
 public enum ConditionOperator {
   EQUALS((actual, expected) -> {
-    boolean result = expected.size() == 1 && compareValues(actual, expected.getFirst()) == 0;
+    boolean result = expected.size() == AuditNumericConstants.ONE
+        && compareValues(actual, expected.getFirst()) == AuditNumericConstants.ZERO;
     logOperation("EQUALS", result, actual, expected);
     return result;
   }),
 
   NOT_EQUALS((actual, expected) -> {
-    boolean result = expected.size() == 1 && compareValues(actual, expected.getFirst()) != 0;
+    boolean result = expected.size() == AuditNumericConstants.ONE
+        && compareValues(actual, expected.getFirst()) != AuditNumericConstants.ZERO;
     logOperation("NOT_EQUALS", result, actual, expected);
     return result;
   }),
@@ -39,31 +43,35 @@ public enum ConditionOperator {
   }),
 
   MATCHES((actual, expected) -> {
-    boolean result = expected.size() == 1 && Objects.nonNull(actual) && actual.matches(expected.getFirst());
+    boolean result = expected.size() == AuditNumericConstants.ONE && Objects.nonNull(actual) && actual.matches(expected.getFirst());
     logOperation("MATCHES", result, actual, expected);
     return result;
   }),
 
   GREATER_THAN((actual, expected) -> {
-    boolean result = expected.size() == 1 && compareValues(actual, expected.getFirst()) > 0;
+    boolean result = expected.size() == AuditNumericConstants.ONE
+        && compareValues(actual, expected.getFirst()) > AuditNumericConstants.ZERO;
     logOperation("GREATER_THAN", result, actual, expected);
     return result;
   }),
 
   LESS_THAN((actual, expected) -> {
-    boolean result = expected.size() == 1 && compareValues(actual, expected.getFirst()) < 0;
+    boolean result = expected.size() == AuditNumericConstants.ONE
+        && compareValues(actual, expected.getFirst()) < AuditNumericConstants.ZERO;
     logOperation("LESS_THAN", result, actual, expected);
     return result;
   }),
 
   GREATER_OR_EQUAL((actual, expected) -> {
-    boolean result = expected.size() == 1 && compareValues(actual, expected.getFirst()) >= 0;
+    boolean result = expected.size() == AuditNumericConstants.ONE
+        && compareValues(actual, expected.getFirst()) >= AuditNumericConstants.ZERO;
     logOperation("GREATER_OR_EQUAL", result, actual, expected);
     return result;
   }),
 
   LESS_OR_EQUAL((actual, expected) -> {
-    boolean result = expected.size() == 1 && compareValues(actual, expected.getFirst()) <= 0;
+    boolean result = expected.size() == AuditNumericConstants.ONE
+        && compareValues(actual, expected.getFirst()) <= AuditNumericConstants.ZERO;
     logOperation("LESS_OR_EQUAL", result, actual, expected);
     return result;
   }),
@@ -147,31 +155,31 @@ public enum ConditionOperator {
   }),
 
   COLL_SIZE_EQUALS((actual, expected) -> {
-    boolean result = compareCollectionSize(actual, expected, 0);
+    boolean result = compareCollectionSize(actual, expected, AuditNumericConstants.ZERO);
     logOperation("COLL_SIZE_EQUALS", result, actual, expected);
     return result;
   }),
 
   COLL_SIZE_GREATER_THAN((actual, expected) -> {
-    boolean result = compareCollectionSize(actual, expected, 1);
+    boolean result = compareCollectionSize(actual, expected, AuditNumericConstants.ONE);
     logOperation("COLL_SIZE_GREATER_THAN", result, actual, expected);
     return result;
   }),
 
   COLL_SIZE_LESS_THAN((actual, expected) -> {
-    boolean result = compareCollectionSize(actual, expected, -1);
+    boolean result = compareCollectionSize(actual, expected, AuditNumericConstants.MINUS_ONE);
     logOperation("COLL_SIZE_LESS_THAN", result, actual, expected);
     return result;
   }),
 
   COLL_SIZE_GREATER_OR_EQUAL((actual, expected) -> {
-    boolean result = compareCollectionSize(actual, expected, 2);
+    boolean result = compareCollectionSize(actual, expected, AuditNumericConstants.TWO);
     logOperation("COLL_SIZE_GREATER_OR_EQUAL", result, actual, expected);
     return result;
   }),
 
   COLL_SIZE_LESS_OR_EQUAL((actual, expected) -> {
-    boolean result = compareCollectionSize(actual, expected, -2);
+    boolean result = compareCollectionSize(actual, expected, AuditNumericConstants.MINUS_TWO);
     logOperation("COLL_SIZE_LESS_OR_EQUAL", result, actual, expected);
     return result;
   });
@@ -196,7 +204,8 @@ public enum ConditionOperator {
       return false;
     }
 
-    if (this.name().startsWith("COLL_SIZE_") && expectedValues.size() == 1) {
+    if (this.name().startsWith(AuditTextConstants.COLL_SIZE_OPERATOR_PREFIX)
+        && expectedValues.size() == AuditNumericConstants.ONE) {
       try {
         Integer.parseInt(expectedValues.getFirst());
       } catch (NumberFormatException e) {
@@ -290,11 +299,12 @@ public enum ConditionOperator {
       return false;
     }
     String trimmed = actual.trim();
-    if (trimmed.equals("[]")) {
+    if (trimmed.equals(AuditTextConstants.EMPTY_JSON_ARRAY)) {
       return true;
     }
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      return trimmed.substring(1, trimmed.length() - 1).trim().isEmpty();
+    if (trimmed.startsWith(AuditTextConstants.JSON_ARRAY_START)
+        && trimmed.endsWith(AuditTextConstants.JSON_ARRAY_END)) {
+      return jsonArrayInnerContent(trimmed).isEmpty();
     }
     return false;
   }
@@ -310,8 +320,9 @@ public enum ConditionOperator {
       return false;
     }
     String trimmed = actual.trim();
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      return !trimmed.substring(1, trimmed.length() - 1).trim().isEmpty();
+    if (trimmed.startsWith(AuditTextConstants.JSON_ARRAY_START)
+        && trimmed.endsWith(AuditTextConstants.JSON_ARRAY_END)) {
+      return !jsonArrayInnerContent(trimmed).isEmpty();
     }
     return false;
   }
@@ -350,64 +361,79 @@ public enum ConditionOperator {
    * @return результат сравнения
    */
   private static boolean compareCollectionSize(String actual, List<String> expected, int mode) {
-    if (Objects.isNull(actual) || expected.size() != 1) {
+    if (Objects.isNull(actual) || expected.size() != AuditNumericConstants.ONE) {
       return false;
     }
     try {
       int expectedSize = Integer.parseInt(expected.getFirst());
       int actualSize = getCollectionSize(actual);
       return switch (mode) {
-        case 0 -> actualSize == expectedSize;
-        case 1 -> actualSize > expectedSize;
-        case -1 -> actualSize < expectedSize;
-        case 2 -> actualSize >= expectedSize;
-        case -2 -> actualSize <= expectedSize;
+        case AuditNumericConstants.ZERO -> actualSize == expectedSize;
+        case AuditNumericConstants.ONE -> actualSize > expectedSize;
+        case AuditNumericConstants.MINUS_ONE -> actualSize < expectedSize;
+        case AuditNumericConstants.TWO -> actualSize >= expectedSize;
+        case AuditNumericConstants.MINUS_TWO -> actualSize <= expectedSize;
         default -> false;
       };
     } catch (NumberFormatException exception) {
       return false;
     }
   }
+
   private static int getCollectionSize(String value) {
     if (Objects.isNull(value)) {
-      return -1;
+      return AuditNumericConstants.MINUS_ONE;
     }
 
     String trimmed = value.trim();
-    if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
-      return -1;
+    if (!trimmed.startsWith(AuditTextConstants.JSON_ARRAY_START)
+        || !trimmed.endsWith(AuditTextConstants.JSON_ARRAY_END)) {
+      return AuditNumericConstants.MINUS_ONE;
     }
 
-    String content = trimmed.substring(1, trimmed.length() - 1).trim();
+    String content = jsonArrayInnerContent(trimmed);
     if (content.isEmpty()) {
-      return 0;
+      return AuditNumericConstants.ZERO;
     }
 
     return countJsonArrayElements(content);
   }
 
   /**
+   * Содержимое JSON-массива без внешних скобок.
+   *
+   * @param jsonArray строка массива вместе со скобками.
+   * @return внутренность массива без крайних пробелов
+   */
+  private static String jsonArrayInnerContent(String jsonArray) {
+    return jsonArray.substring(
+            AuditNumericConstants.ONE,
+            jsonArray.length() - AuditNumericConstants.ONE)
+        .trim();
+  }
+
+  /**
    * Подсчитывает количество элементов в строке JSON-массива.
    */
   private static int countJsonArrayElements(String jsonArrayContent) {
-    int count = 0;
-    int depth = 0;
+    int count = AuditNumericConstants.ZERO;
+    int depth = AuditNumericConstants.ZERO;
     boolean inQuotes = false;
-    char prevChar = 0;
+    char prevChar = AuditTextConstants.CHAR_NUL;
 
-    for (int i = 0; i < jsonArrayContent.length(); i++) {
+    for (int i = AuditNumericConstants.ZERO; i < jsonArrayContent.length(); i++) {
       char c = jsonArrayContent.charAt(i);
 
-      if (c == '"' && prevChar != '\\') {
+      if (c == AuditTextConstants.CHAR_QUOTE && prevChar != AuditTextConstants.CHAR_BACKSLASH) {
         inQuotes = !inQuotes;
       }
 
       if (!inQuotes) {
-        if (c == '[' || c == '{') {
+        if (c == AuditTextConstants.CHAR_ARRAY_START || c == AuditTextConstants.CHAR_OBJECT_START) {
           depth++;
-        } else if (c == ']' || c == '}') {
+        } else if (c == AuditTextConstants.CHAR_ARRAY_END || c == AuditTextConstants.CHAR_OBJECT_END) {
           depth--;
-        } else if (c == ',' && depth == 0) {
+        } else if (c == AuditTextConstants.CHAR_COMMA && depth == AuditNumericConstants.ZERO) {
           count++;
         }
       }
@@ -415,7 +441,7 @@ public enum ConditionOperator {
       prevChar = c;
     }
 
-    return count + 1;
+    return count + AuditNumericConstants.ONE;
   }
 
   /**
@@ -423,7 +449,7 @@ public enum ConditionOperator {
    */
   private static int compareValues(String actual, String expected) {
     if (Objects.isNull(actual) || Objects.isNull(expected)) {
-      return -1;
+      return AuditNumericConstants.MINUS_ONE;
     }
 
     try {

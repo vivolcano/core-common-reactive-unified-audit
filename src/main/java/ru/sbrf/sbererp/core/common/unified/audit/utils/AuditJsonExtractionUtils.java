@@ -254,14 +254,17 @@ public final class AuditJsonExtractionUtils {
       ArrayNode arrayNode = (ArrayNode) node;
       int size = arrayNode.size();
 
-      if (size == 0) {
+      if (size == AuditNumericConstants.ZERO) {
         // Пустая коллекция - не ищем внутри
         log.debug(AuditLogMessages.SKIPPING_EMPTY_JSON_ARRAY, currentPath);
         return null;
-      } else if (size == 1) {
+      } else if (size == AuditNumericConstants.ONE) {
         log.debug(AuditLogMessages.DESCENDING_SINGLE_ELEMENT_ARRAY, currentPath);
         return findIntoDepthFieldPath(
-            arrayNode.get(0), fieldName, JsonPointer.valueOf(currentPath + AuditTextConstants.SLASH + 0));
+            arrayNode.get(AuditNumericConstants.ZERO),
+            fieldName,
+            JsonPointer.valueOf(currentPath + AuditTextConstants.SLASH + AuditTextConstants.JSON_POINTER_FIRST_INDEX)
+        );
       } else {
         log.debug(AuditLogMessages.SKIPPING_MULTI_ELEMENT_ARRAY, size, currentPath);
         return null;
@@ -414,8 +417,8 @@ public final class AuditJsonExtractionUtils {
    * @param fieldPath путь до поля, которое нужно скрыть.
    */
   private static void maskFieldInCollections(JsonNode node, String fieldPath) {
-    String[] pathParts = fieldPath.split("\\.");
-    processNode(node, pathParts, 0);
+    String[] pathParts = fieldPath.split(AuditTextConstants.JSON_PATH_DOT_SPLIT_REGEX);
+    processNode(node, pathParts, AuditNumericConstants.ZERO);
   }
 
   /**
@@ -431,7 +434,7 @@ public final class AuditJsonExtractionUtils {
     }
 
     String currentField = pathParts[currentIndex];
-    boolean isLastField = currentIndex == pathParts.length - 1;
+    boolean isLastField = currentIndex == pathParts.length - AuditNumericConstants.ONE;
 
     if (node.isArray()) {
       // Обработка массива
@@ -441,7 +444,7 @@ public final class AuditJsonExtractionUtils {
             ((ObjectNode) arrayItem).remove(currentField);
           }
         } else {
-          processNode(arrayItem.get(currentField), pathParts, currentIndex + 1);
+          processNode(arrayItem.get(currentField), pathParts, currentIndex + AuditNumericConstants.ONE);
         }
       }
     } else if (node.isObject()) {
@@ -449,7 +452,7 @@ public final class AuditJsonExtractionUtils {
       if (isLastField) {
         ((ObjectNode) node).remove(currentField);
       } else if (node.has(currentField)) {
-        processNode(node.get(currentField), pathParts, currentIndex + 1);
+        processNode(node.get(currentField), pathParts, currentIndex + AuditNumericConstants.ONE);
       }
     }
   }

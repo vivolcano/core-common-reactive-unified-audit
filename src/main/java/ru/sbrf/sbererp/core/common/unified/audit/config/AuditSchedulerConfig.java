@@ -19,17 +19,23 @@ public final class AuditSchedulerConfig {
    */
   public static final String ELASTIC_SCHEDULER = "unifiedAuditElasticScheduler";
 
+  /** Префикс потоков блокирующего клиента аудита. */
+  public static final String THREAD_NAME_PREFIX = "unified-audit";
+
+  /** {@code destroyMethod} бина планировщика. */
+  public static final String DESTROY_METHOD = "dispose";
+
   /**
    * Создаёт именованный {@code boundedElastic}-пул с префиксом потоков {@code unified-audit}.
    *
    * @return планировщик для блокирующего I/O аудита
    */
-  @Bean(name = ELASTIC_SCHEDULER, destroyMethod = "dispose")
+  @Bean(name = ELASTIC_SCHEDULER, destroyMethod = DESTROY_METHOD)
   public Scheduler unifiedAuditElasticScheduler() {
     return Schedulers.newBoundedElastic(
         Schedulers.DEFAULT_BOUNDED_ELASTIC_SIZE,
         Schedulers.DEFAULT_BOUNDED_ELASTIC_QUEUESIZE,
-        "unified-audit"
+        THREAD_NAME_PREFIX
     );
   }
 }

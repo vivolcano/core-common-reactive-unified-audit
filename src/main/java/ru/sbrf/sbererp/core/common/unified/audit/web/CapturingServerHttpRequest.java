@@ -9,6 +9,7 @@ import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditNumericConstants;
 
 /**
  * {@link ServerHttpRequest}, который копирует тело для аудита и отдаёт его повторно.
@@ -96,7 +97,7 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
 
   private Flux<DataBuffer> replayCaptured() {
     byte[] bytes = capture.capturedBody();
-    if (bytes.length == 0) {
+    if (bytes.length == AuditNumericConstants.ZERO) {
       return Flux.empty();
     }
     return Flux.just(DefaultDataBufferFactory.sharedInstance.wrap(bytes));

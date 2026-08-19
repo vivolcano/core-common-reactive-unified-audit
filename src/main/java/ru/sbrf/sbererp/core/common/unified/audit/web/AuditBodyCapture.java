@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExchangeAttributeNames;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditNumericConstants;
 
 /**
  * Копирует тело HTTP для аудита, не забирая байты у исходного {@link DataBuffer}.
@@ -35,13 +36,13 @@ final class AuditBodyCapture {
    * @param dataBuffer очередной фрагмент тела.
    */
   synchronized void append(DataBuffer dataBuffer) {
-    if (exceeded || dataBuffer.readableByteCount() <= 0) {
+    if (exceeded || dataBuffer.readableByteCount() <= AuditNumericConstants.ZERO) {
       return;
     }
     int readable = dataBuffer.readableByteCount();
     if (written + readable > maxBodyBytes) {
       exceeded = true;
-      written = 0;
+      written = AuditNumericConstants.ZERO;
       buffer.reset();
       log.warn(overflowMessage);
       return;
@@ -50,7 +51,7 @@ final class AuditBodyCapture {
     int readPosition = dataBuffer.readPosition();
     dataBuffer.read(chunk);
     dataBuffer.readPosition(readPosition);
-    buffer.write(chunk, 0, readable);
+    buffer.write(chunk, AuditNumericConstants.ZERO, readable);
     written += readable;
   }
 
@@ -58,7 +59,7 @@ final class AuditBodyCapture {
    * @return копия накопленного тела или пустой массив, если лимит превышен либо тело пусто
    */
   synchronized byte[] capturedBody() {
-    if (exceeded || written == 0) {
+    if (exceeded || written == AuditNumericConstants.ZERO) {
       return AuditExchangeAttributeNames.EMPTY_BODY;
     }
     return buffer.toByteArray();

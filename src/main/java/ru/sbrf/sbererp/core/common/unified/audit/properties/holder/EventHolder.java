@@ -16,6 +16,7 @@ import ru.sbrf.sbererp.core.common.unified.audit.binder.AuditParameterBinder;
 import ru.sbrf.sbererp.core.common.unified.audit.exception.UnifiedAuditException;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.Extractor;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.RequestExtractor;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditConfigurationFieldNames;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExceptionMessages;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 import ru.sbrf.ufs.platform.audit.model.CriticalityEnum;
@@ -62,8 +63,8 @@ public record EventHolder(
       String description,
       CriticalityEnum mode,
       Boolean success,
-      @Name("params") Map<String, List<ParamHolder>> params,
-      @Name("conditions") Map<String, List<ConditionHolder>> conditions) {
+      @Name(AuditConfigurationFieldNames.PARAMS) Map<String, List<ParamHolder>> params,
+      @Name(AuditConfigurationFieldNames.CONDITIONS) Map<String, List<ConditionHolder>> conditions) {
     this(name, description, mode, success, params, conditions, new AtomicReference<>());
   }
 

@@ -5,13 +5,14 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ClassEventsHolder;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.EventHolder;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditConfigurationFieldNames;
 
 /**
  * YAML {@code audit.model}: привязка событий к FQCN контроллеров и именам методов.
  *
  * @param classEventsHolders список контроллеров; {@code null}/пусто нормализуется в {@link List#of()}.
  */
-@ConfigurationProperties(prefix = "audit.model")
+@ConfigurationProperties(prefix = AuditConfigurationFieldNames.AUDIT_MODEL_PREFIX)
 public record AuditEventsProperties(List<ClassEventsHolder> classEventsHolders) {
 
   /**

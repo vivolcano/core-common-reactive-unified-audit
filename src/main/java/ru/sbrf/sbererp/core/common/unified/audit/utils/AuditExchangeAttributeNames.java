@@ -18,5 +18,5 @@ public final class AuditExchangeAttributeNames {
   public static final String TOKEN_PARAMS = "unified.audit.tokenParams";
 
   /** Пустое тело, если запись отсутствует. */
-  public static final byte[] EMPTY_BODY = new byte[0];
+  public static final byte[] EMPTY_BODY = new byte[AuditNumericConstants.ZERO];
 }

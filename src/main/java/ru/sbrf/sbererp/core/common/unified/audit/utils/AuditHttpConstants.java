@@ -52,4 +52,25 @@ public final class AuditHttpConstants {
 
   /** Ключ YAML/биндера: JWT claims. */
   public static final String CLAIMS = "CLAIMS";
+
+  /** Ant-шаблон actuator. */
+  public static final String ACTUATOR_ANT_PATTERN = "/actuator/**";
+
+  /** Корневая страница swagger-ui. */
+  public static final String SWAGGER_UI_HTML = "/swagger-ui.html";
+
+  /** Ant-шаблон swagger-ui. */
+  public static final String SWAGGER_UI_ANT_PATTERN = "/swagger-ui/**";
+
+  /** OpenAPI JSON. */
+  public static final String V3_API_DOCS = "/v3/api-docs";
+
+  /** Ant-шаблон OpenAPI. */
+  public static final String V3_API_DOCS_ANT_PATTERN = "/v3/api-docs/**";
+
+  /** Ant-шаблон webjars. */
+  public static final String WEBJARS_ANT_PATTERN = "/webjars/**";
+
+  /** Favicon. */
+  public static final String FAVICON_ICO = "/favicon.ico";
 }

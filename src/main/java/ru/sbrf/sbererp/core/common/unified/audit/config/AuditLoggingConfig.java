@@ -9,6 +9,7 @@ import org.springframework.core.annotation.Order;
 import ru.sbrf.sbererp.core.common.unified.audit.filter.AuditWebFilter;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.AuditReactiveProperties;
 import ru.sbrf.sbererp.core.common.unified.audit.resolver.AuditEventResolver;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditNumericConstants;
 
 /**
  * Конфигурация WebFlux-фильтра аудита.
@@ -23,7 +24,7 @@ public final class AuditLoggingConfig {
   /**
    * Порядок фильтра: ближе к клиенту, чтобы декоратор видел исходные тела запроса и ответа.
    */
-  public static final int FILTER_ORDER = HIGHEST_PRECEDENCE + 50;
+  public static final int FILTER_ORDER = HIGHEST_PRECEDENCE + AuditNumericConstants.FILTER_ORDER_OFFSET;
 
   private final AuditEventResolver auditEventResolver;
   private final AuditReactiveProperties reactiveProperties;
