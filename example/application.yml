@@ -1,0 +1,27 @@
+audit:
+  reactive:
+    max-body-size: 1MB
+  client:
+    config: {}
+    meta-model:
+      version: "1.0"
+      module: "erp-module"
+      subsystem: "core"
+      source-system: "ERP"
+  model:
+    class-events-holders:
+      - controller-class: com.example.api.OrderController
+        events:
+          create:
+            - name: OrderCreated
+              description: Создание заказа
+              mode: UNCRITICAL
+              success: true
+              params:
+                request:
+                  - name: orderId
+                    description: Идентификатор заказа
+                response-code:
+                  - name: httpStatus
+                    description: Код ответа
+              conditions: {}

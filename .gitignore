@@ -1,0 +1,8 @@
+target/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+core-common-reactive-unified-audit
