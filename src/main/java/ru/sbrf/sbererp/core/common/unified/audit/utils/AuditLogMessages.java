@@ -11,6 +11,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public final class AuditLogMessages {
 
+  public static final String SKIPPING_EXCLUDED_PATH =
+      "Skipping audit for excluded path {} {}";
+
   public static final String SKIPPING_REQUEST_BODY_CACHE =
       "Skipping request body cache for {} {}";
 

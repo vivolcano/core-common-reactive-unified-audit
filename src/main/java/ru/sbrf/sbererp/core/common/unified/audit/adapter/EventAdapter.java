@@ -1,12 +1,13 @@
 package ru.sbrf.sbererp.core.common.unified.audit.adapter;
 
 import com.sbt.audit.core.model.v2.event.Event;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
 import lombok.Builder;
 import org.apache.commons.lang3.ObjectUtils;
 import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ParamHolder;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Внутреннее представление события до конвертации в {@link Event}.
@@ -38,7 +39,7 @@ public record EventAdapter(
    * Нормализует карту параметров, если билдер её не задал.
    */
   public EventAdapter {
-    params = Objects.isNull(params) ? new HashMap<>() : params;
+    params = Objects.requireNonNullElseGet(params, HashMap::new);
   }
 
   /**

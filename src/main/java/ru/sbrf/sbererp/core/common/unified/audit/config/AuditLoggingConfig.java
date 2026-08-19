@@ -13,15 +13,15 @@ import ru.sbrf.sbererp.core.common.unified.audit.resolver.AuditEventResolver;
 /**
  * Конфигурация WebFlux-фильтра аудита.
  * <p>
- * Один {@link AuditWebFilter} совмещает роли servlet-фильтров кеширования тел и аудита: буферизует
- * тело запроса/ответа и после завершения цепочки отправляет событие.
+ * Один {@link AuditWebFilter} копирует тела в лимите аудита и после цепочки отправляет событие.
+ * Пути {@code audit.reactive.exclude-path-patterns} (actuator, swagger, …) не обрабатываются.
  */
 @RequiredArgsConstructor
 @Configuration(proxyBeanMethods = false)
 public final class AuditLoggingConfig {
 
   /**
-   * Порядок фильтра: ближе к клиенту, чтобы тело запроса было доступно контроллеру повторно.
+   * Порядок фильтра: ближе к клиенту, чтобы декоратор видел исходные тела запроса и ответа.
    */
   public static final int FILTER_ORDER = HIGHEST_PRECEDENCE + 50;
 

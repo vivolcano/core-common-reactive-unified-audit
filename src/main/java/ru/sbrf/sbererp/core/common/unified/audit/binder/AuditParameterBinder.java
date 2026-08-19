@@ -1,13 +1,5 @@
 package ru.sbrf.sbererp.core.common.unified.audit.binder;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,14 +7,14 @@ import ru.sbrf.sbererp.core.common.unified.audit.exception.UnifiedAuditException
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.Extractor;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.RequestExtractor;
 import ru.sbrf.sbererp.core.common.unified.audit.extractor.ResponseExtractor;
-import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ClassEventsHolder;
-import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ConditionHolder;
-import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.EventHolder;
-import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.Holder;
-import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ParamHolder;
-import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
+import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.*;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExceptionMessages;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
+import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditTextConstants;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.util.*;
 
 /**
  * Сопоставляет ключ YAML ({@code request}, {@code response-header}, …) с {@link Extractor}.
@@ -44,6 +36,7 @@ public enum AuditParameterBinder {
   REQUEST {
     @Override
     void setExtractors(List<? extends Holder> holders, Map<String, Parameter> parametersMap) {
+      boolean hasRequestBody = hasRequestBodyParameter(parametersMap);
       List<Holder> paramHoldersNotMethodParam = new ArrayList<>();
       for (Holder holder : holders) {
         String parameterFieldName = Objects.requireNonNullElse(holder.getKey(), holder.getName());
@@ -55,13 +48,7 @@ public enum AuditParameterBinder {
           paramHoldersNotMethodParam.add(holder);
         }
       }
-      String key = null;
-      for (Parameter parameter : parametersMap.values()) {
-        if (parameter.isAnnotationPresent(RequestBody.class)) {
-          key = parameter.getName();
-        }
-      }
-      if (Objects.nonNull(key)) {
+      if (hasRequestBody) {
         for (Holder holderNotMethodParam : paramHoldersNotMethodParam) {
           RequestExtractor.setExtractor(holderNotMethodParam);
         }
@@ -235,17 +222,19 @@ public enum AuditParameterBinder {
   }
 
   /** Обрабатывает методы класса для поиска подходящих событий аудита. */
-  private static void processMethodParameters(ClassEventsHolder classEventsHolder,
-      Class<?> clazz) {
+  private static void processMethodParameters(ClassEventsHolder classEventsHolder, Class<?> clazz) {
     for (Method method : clazz.getDeclaredMethods()) {
       if (!classEventsHolder.eventsMap().containsKey(method.getName())) {
         continue;
       }
-      List<EventHolder> eventHolders = classEventsHolder.eventsMap().get(method.getName())
-          .methodEventHolders();
+      List<EventHolder> eventHolders = classEventsHolder.eventsMap()
+              .get(method.getName())
+              .methodEventHolders();
+
       for (EventHolder eventHolder : eventHolders) {
         Map<String, Parameter> parametersMap = getParametersMap(method);
         bindParametersToExtractors(eventHolder, parametersMap);
+
         if (eventHolder.hasConditions()) {
           postCompile(eventHolder, parametersMap);
         }
@@ -262,8 +251,7 @@ public enum AuditParameterBinder {
    * @param event         описание события с параметрами.
    * @param parametersMap карта параметров метода.
    */
-  private static void bindParametersToExtractors(EventHolder event,
-      Map<String, Parameter> parametersMap) {
+  private static void bindParametersToExtractors(EventHolder event, Map<String, Parameter> parametersMap) {
 
     if (!event.hasParams()) {
       return;
@@ -307,6 +295,19 @@ public enum AuditParameterBinder {
       }
     }
     event.postCompile();
+  }
+
+  /**
+   * @param parametersMap параметры метода.
+   * @return {@code true}, если среди них есть {@link RequestBody}
+   */
+  private static boolean hasRequestBodyParameter(Map<String, Parameter> parametersMap) {
+    for (Parameter parameter : parametersMap.values()) {
+      if (parameter.isAnnotationPresent(RequestBody.class)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

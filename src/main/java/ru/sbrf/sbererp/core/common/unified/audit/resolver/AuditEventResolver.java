@@ -24,7 +24,6 @@ import ru.sbrf.sbererp.core.common.unified.audit.properties.holder.ParamHolder;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditEventHeaderUtils;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.ReactiveSecurityContextUtils;
 import ru.sbrf.sbererp.core.common.unified.audit.service.AuditClientService;
-import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditHttpConstants;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExceptionMessages;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 
@@ -211,13 +210,11 @@ public final class AuditEventResolver {
       List<ParamHolder> paramHolders,
       AuditParameterBinder binder,
       ServerWebExchange exchange) {
-    String name = binder.name();
-    if (name.contains(AuditHttpConstants.REQUEST) || name.equalsIgnoreCase(AuditHttpConstants.CLAIMS)) {
-      paramHolders.forEach(paramHolder -> addRequestParam(eventAdapter, paramHolder, exchange));
-      return;
-    }
-    if (name.contains(AuditHttpConstants.RESPONSE)) {
-      paramHolders.forEach(paramHolder -> addResponseParam(eventAdapter, paramHolder, exchange));
+    switch (binder) {
+      case REQUEST, REQUEST_HEADER, CLAIMS, PATH_VARIABLE ->
+          paramHolders.forEach(paramHolder -> addRequestParam(eventAdapter, paramHolder, exchange));
+      case RESPONSE_CODE, RESPONSE_HEADER, RESPONSE_BODY ->
+          paramHolders.forEach(paramHolder -> addResponseParam(eventAdapter, paramHolder, exchange));
     }
   }
 

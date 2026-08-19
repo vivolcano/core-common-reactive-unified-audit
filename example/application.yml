@@ -1,27 +1,109 @@
+# Пример конфигурации WebFlux-модуля единого аудита.
+# Блоки audit.client и audit.model совпадают с WEB-версией: при смене библиотеки YAML не меняется.
+# audit.reactive — только WebFlux (лимит кэша тел и exclude-пути). Можно не указывать.
 audit:
-  reactive:
-    max-body-size: 1MB
   client:
     config: {}
     meta-model:
       version: "1.0"
-      module: "erp-module"
-      subsystem: "core"
-      source-system: "ERP"
+      module: erp-module
+      subsystem: core
+      source-system: ERP
+  reactive:
+    max-body-size: 1MB
+    exclude-path-patterns:
+      - /actuator/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
   model:
     class-events-holders:
       - controller-class: com.example.api.OrderController
         events:
           create:
-            - name: OrderCreated
-              description: Создание заказа
+            - name: OrderCreatedVip
+              description: Создание заказа с заголовком X-Audit-Tag=vip
               mode: UNCRITICAL
               success: true
               params:
                 request:
                   - name: orderId
                     description: Идентификатор заказа
+                    key: id
+                  - name: payload
+                    description: Тело запроса без секрета
+                    key: request
+                    masks:
+                      - secret
+                request-header:
+                  - name: clientApp
+                    description: Клиентское приложение
+                    key: X-Client-App
+                claims:
+                  - name: login
+                    description: JWT subject
+                    key: sub
                 response-code:
                   - name: httpStatus
                     description: Код ответа
-              conditions: {}
+                response-body:
+                  - name: createdId
+                    description: Идентификатор из ответа
+                    key: id
+              conditions:
+                request-header:
+                  - field: X-Audit-Tag
+                    operator: EQUALS
+                    values:
+                      - vip
+            - name: OrderCreated
+              description: Успешное создание заказа
+              mode: UNCRITICAL
+              success: true
+              params:
+                request:
+                  - name: orderId
+                    description: Идентификатор заказа
+                    key: id
+                response-code:
+                  - name: httpStatus
+                    description: Код ответа
+            - name: OrderCreateFailed
+              description: Ошибка создания заказа
+              mode: UNCRITICAL
+              success: false
+              params:
+                request:
+                  - name: orderId
+                    description: Идентификатор заказа
+                    key: id
+                response-code:
+                  - name: httpStatus
+                    description: Код ответа
+          getById:
+            - name: OrderFetchedSpecial
+              description: Чтение заказа с id=special
+              mode: UNCRITICAL
+              success: true
+              params:
+                path-variable:
+                  - name: orderId
+                    description: Идентификатор из URI
+                    key: id
+              conditions:
+                path-variable:
+                  - field: id
+                    operator: EQUALS
+                    values:
+                      - special
+            - name: OrderFetched
+              description: Чтение заказа по идентификатору
+              mode: UNCRITICAL
+              success: true
+              params:
+                path-variable:
+                  - name: orderId
+                    description: Идентификатор из URI
+                    key: id
+                response-code:
+                  - name: httpStatus
+                    description: Код ответа

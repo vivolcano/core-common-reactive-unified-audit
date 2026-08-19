@@ -1,109 +1,66 @@
 package ru.sbrf.sbererp.core.common.unified.audit.web;
 
-import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferLimitException;
-import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditExchangeAttributeNames;
 import ru.sbrf.sbererp.core.common.unified.audit.utils.AuditLogMessages;
 
 /**
- * {@link ServerHttpResponse}, который запоминает записанное тело для последующего аудита.
+ * {@link ServerHttpResponse}, который копирует тело для аудита и сразу пишет его делегату.
  * <p>
- * Декоратор перехватывает {@link #writeWith} и {@link #writeAndFlushWith}, копирует буферы в массив
- * байтов и сразу передаёт их делегату. Объём буферизации ограничен {@code maxBodyBytes}.
+ * Буферы не склеиваются и не ограничивают запись клиенту. Если размер превышает лимит,
+ * кэш аудита остаётся пустым, HTTP-ответ продолжается без изменений.
  */
-@Slf4j
 public final class CapturingServerHttpResponse extends ServerHttpResponseDecorator {
 
-  /**
-   * Число буферов тела ответа, запрашиваемых у writer'а за один раз.
-   */
-  private static final int RESPONSE_BODY_PREFETCH = 8;
-
-  private final AtomicReference<byte[]> capturedBody =
-      new AtomicReference<>(AuditExchangeAttributeNames.EMPTY_BODY);
-  private final int maxBodyBytes;
+  private final AuditBodyCapture capture;
 
   /**
-   * Создаёт декоратор ответа.
-   *
    * @param delegate     исходный ответ.
-   * @param maxBodyBytes лимит буферизации.
+   * @param maxBodyBytes лимит буферизации для аудита.
    */
   public CapturingServerHttpResponse(ServerHttpResponse delegate, int maxBodyBytes) {
     super(delegate);
-    this.maxBodyBytes = maxBodyBytes;
+    this.capture = new AuditBodyCapture(maxBodyBytes, AuditLogMessages.RESPONSE_BODY_EXCEEDS_LIMIT);
   }
 
   /**
-   * Возвращает захваченное тело ответа.
-   *
-   * @return тело ответа или пустой массив
+   * @return тело для аудита или пустой массив при превышении лимита
    */
   public byte[] capturedBody() {
-    return capturedBody.get();
+    return capture.capturedBody();
   }
 
   /**
-   * Собирает тело ответа в память, запоминает его и сразу пишет делегату.
+   * Пишет тело делегату, параллельно копируя байты в кэш аудита.
    *
    * @param body поток буферов тела ответа.
    * @return сигнал завершения записи в делегат
    */
   @Override
   public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
-    return DataBufferUtils.join(
-            Flux.from(body)
-                .limitRate(RESPONSE_BODY_PREFETCH)
-                .doOnDiscard(DataBuffer.class, DataBufferUtils::release),
-            maxBodyBytes
-        )
-        .defaultIfEmpty(bufferFactory().wrap(AuditExchangeAttributeNames.EMPTY_BODY))
-        .doOnError(DataBufferLimitException.class,
-            exception -> log.warn(AuditLogMessages.RESPONSE_BODY_EXCEEDS_LIMIT, exception))
-        .flatMap(this::writeJoinedBuffer);
+    return super.writeWith(tee(body));
   }
 
   /**
-   * Сводит chunked-запись к {@link #writeWith}.
+   * Сохраняет границы flush и копирует каждый фрагмент для аудита.
    *
    * @param body поток порций тела ответа.
    * @return сигнал завершения записи в делегат
    */
   @Override
   public Mono<Void> writeAndFlushWith(Publisher<? extends Publisher<? extends DataBuffer>> body) {
-    return writeWith(Flux.from(body).concatMap(Flux::from));
+    return super.writeAndFlushWith(Flux.from(body).map(this::tee));
   }
 
   /**
-   * Копирует соединённый буфер в кэш и пишет его делегату.
-   *
-   * @param joined соединённый буфер тела.
-   * @return сигнал завершения записи
+   * @param body исходный поток буферов.
+   * @return тот же поток с копированием в кэш аудита
    */
-  private Mono<Void> writeJoinedBuffer(DataBuffer joined) {
-    byte[] bytes = readBytes(joined);
-    DataBufferUtils.release(joined);
-    capturedBody.set(bytes);
-    return super.writeWith(Mono.just(bufferFactory().wrap(bytes)));
-  }
-
-  /**
-   * Копирует содержимое буфера в новый массив байтов.
-   *
-   * @param dataBuffer буфер с телом ответа.
-   * @return копия читаемых байтов буфера
-   */
-  private byte[] readBytes(DataBuffer dataBuffer) {
-    byte[] bytes = new byte[dataBuffer.readableByteCount()];
-    dataBuffer.read(bytes);
-    return bytes;
+  private Flux<? extends DataBuffer> tee(Publisher<? extends DataBuffer> body) {
+    return Flux.from(body).doOnNext(capture::append);
   }
 }

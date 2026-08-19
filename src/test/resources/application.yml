@@ -1,0 +1,190 @@
+spring:
+  main:
+    web-application-type: reactive
+
+# Пример конфигурации реактивного единого аудита для интеграционных тестов.
+# class-events-holders привязывает FQCN контроллера и имя Java-метода к списку событий.
+audit:
+  client:
+    meta-model:
+      version: "1.0.0"
+      module: unified-audit-test
+      subsystem: test-subsystem
+      source-system: test-source
+  reactive:
+    max-body-size: 64B
+    exclude-path-patterns:
+      - /actuator/**
+      - /swagger-ui/**
+      - /v3/api-docs/**
+  model:
+    class-events-holders:
+      - controller-class: ru.sbrf.sbererp.audit.it.controller.AuditItemsController
+        events:
+          create:
+            - name: ItemCreatedVip
+              description: Создание элемента с заголовком X-Audit-Tag=vip
+              mode: UNCRITICAL
+              success: true
+              params:
+                request:
+                  - name: itemName
+                    description: Имя элемента из JSON
+                    key: name
+                  - name: payload
+                    description: Тело запроса с маскированием secret
+                    key: request
+                    masks:
+                      - secret
+                request-header:
+                  - name: clientApp
+                    description: Клиентское приложение
+                    key: X-Client-App
+                  - name: auditTag
+                    description: Тег аудита
+                    key: X-Audit-Tag
+                claims:
+                  - name: login
+                    description: JWT subject
+                    key: sub
+                response-code:
+                  - name: httpStatus
+                    description: HTTP-статус ответа
+                response-header:
+                  - name: itemResponseHeader
+                    description: Идентификатор в заголовке ответа
+                    key: X-Item-Id
+                response-body:
+                  - name: itemId
+                    description: Идентификатор из JSON ответа
+                    key: id
+              conditions:
+                request-header:
+                  - field: X-Audit-Tag
+                    operator: EQUALS
+                    values:
+                      - vip
+            - name: ItemCreated
+              description: Успешное создание элемента
+              mode: UNCRITICAL
+              success: true
+              params:
+                request:
+                  - name: itemName
+                    description: Имя элемента из JSON
+                    key: name
+                  - name: payload
+                    description: Тело запроса с маскированием secret
+                    key: request
+                    masks:
+                      - secret
+                request-header:
+                  - name: clientApp
+                    description: Клиентское приложение
+                    key: X-Client-App
+                claims:
+                  - name: login
+                    description: JWT subject
+                    key: sub
+                response-code:
+                  - name: httpStatus
+                    description: HTTP-статус ответа
+                response-header:
+                  - name: itemResponseHeader
+                    description: Идентификатор в заголовке ответа
+                    key: X-Item-Id
+                response-body:
+                  - name: itemId
+                    description: Идентификатор из JSON ответа
+                    key: id
+          fail:
+            - name: ItemCreateFailed
+              description: Ошибка создания элемента
+              mode: UNCRITICAL
+              success: false
+              params:
+                request:
+                  - name: itemName
+                    description: Имя элемента из JSON
+                    key: name
+                response-code:
+                  - name: httpStatus
+                    description: HTTP-статус ответа
+          createLarge:
+            - name: ItemCreatedLarge
+              description: Создание с телом больше audit.reactive.max-body-size
+              mode: UNCRITICAL
+              success: true
+              params:
+                request:
+                  - name: itemName
+                    description: Имя из тела; пусто, если лимит аудита превышен
+                    key: name
+                response-code:
+                  - name: httpStatus
+                    description: HTTP-статус ответа
+          ping:
+            - name: ItemPinged
+              description: POST без чтения тела контроллером
+              mode: UNCRITICAL
+              success: true
+              params:
+                request-header:
+                  - name: clientApp
+                    description: Клиентское приложение
+                    key: X-Client-App
+                response-code:
+                  - name: httpStatus
+                    description: HTTP-статус ответа
+                response-body:
+                  - name: pingStatus
+                    description: Статус из JSON ответа
+                    key: status
+          getById:
+            - name: ItemFetchedSpecial
+              description: Чтение элемента с id=special
+              mode: UNCRITICAL
+              success: true
+              params:
+                path-variable:
+                  - name: itemId
+                    description: Идентификатор из URI
+                    key: id
+                response-body:
+                  - name: itemName
+                    description: Имя из JSON ответа
+                    key: name
+              conditions:
+                path-variable:
+                  - field: id
+                    operator: EQUALS
+                    values:
+                      - special
+            - name: ItemFetched
+              description: Чтение элемента по идентификатору
+              mode: UNCRITICAL
+              success: true
+              params:
+                path-variable:
+                  - name: itemId
+                    description: Идентификатор из URI
+                    key: id
+                response-code:
+                  - name: httpStatus
+                    description: HTTP-статус ответа
+                response-body:
+                  - name: itemName
+                    description: Имя из JSON ответа
+                    key: name
+          list:
+            - name: ItemsListed
+              description: Список элементов без тела запроса
+              mode: UNCRITICAL
+              success: true
+              params:
+                request:
+                  - name: query
+                    description: Поисковая строка
+                response-code:
+                  - name: httpStatus
+                    description: HTTP-статус ответа
