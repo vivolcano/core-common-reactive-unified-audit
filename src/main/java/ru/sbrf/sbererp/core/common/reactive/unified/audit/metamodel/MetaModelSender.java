@@ -35,9 +35,11 @@ public final class MetaModelSender {
   private final Scheduler auditScheduler;
 
   /**
-   * @param auditService       блокирующий клиент аудита
-   * @param metaModelConverter конвертер метамодели
-   * @param auditScheduler     elastic-планировщик
+   * Создаёт отправителя метамодели.
+   *
+   * @param auditService       блокирующий клиент аудита.
+   * @param metaModelConverter конвертер метамодели.
+   * @param auditScheduler     elastic-планировщик.
    */
   public MetaModelSender(
       AuditService auditService,
@@ -83,14 +85,30 @@ public final class MetaModelSender {
         .block();
   }
 
+  /**
+   * Логирует успешную регистрацию метамодели.
+   *
+   * @param hash хеш зарегистрированной метамодели.
+   */
   private void logRegisterSuccess(String hash) {
     log.info(AuditLogMessages.METAMODEL_REGISTERED, hash);
   }
 
+  /**
+   * Логирует ошибку регистрации метамодели.
+   *
+   * @param throwable ошибка клиента.
+   */
   private void logRegisterError(Throwable throwable) {
     log.error(AuditLogMessages.METAMODEL_REGISTER_FAILED, throwable);
   }
 
+  /**
+   * Поглощает ошибку регистрации, чтобы старт приложения не падал из-за аудита.
+   *
+   * @param throwable ошибка регистрации.
+   * @return пустой сигнал.
+   */
   private Mono<String> swallowRegisterError(Throwable throwable) {
     return Mono.empty();
   }

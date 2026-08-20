@@ -20,9 +20,9 @@ public final class AuditPrettyJsonUtils {
       .build();
 
   /**
-   * @param object      любой объект, сериализуемый Jackson
-   * @param failMessage текст при {@link JacksonException}
-   * @return indented JSON либо {@code failMessage}
+   * @param object      любой объект, сериализуемый Jackson.
+   * @param failMessage текст при {@link JacksonException}.
+   * @return indented JSON либо {@code failMessage}.
    */
   public static String getFormatString(Object object, String failMessage) {
     return Try.of(() -> MAPPER.writeValueAsString(object)).getOrElse(failMessage);

@@ -27,9 +27,9 @@ public final class AuditEventBinderPostProcessor implements BeanPostProcessor {
   /**
    * Если класс бина есть в {@code audit.model.class-events-holders}, привязывает экстракторы.
    *
-   * @param bean     инициализируемый бин
-   * @param beanName имя бина
-   * @return тот же бин
+   * @param bean     инициализируемый бин.
+   * @param beanName имя бина.
+   * @return тот же бин.
    */
   @Override
   public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {

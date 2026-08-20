@@ -4,6 +4,8 @@ import io.vavr.control.Try;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditLogMessages;
@@ -104,28 +106,28 @@ public enum ConditionOperator {
 
   /** Строка пустая. */
   STRING_IS_EMPTY((actual, expected) -> {
-    boolean result = Objects.nonNull(actual) && actual.isEmpty();
+    boolean result = Objects.nonNull(actual) && ObjectUtils.isEmpty(actual);
     logOperation("STRING_IS_EMPTY", result, actual, expected);
     return result;
   }),
 
   /** Строка непустая. */
   STRING_IS_NOT_EMPTY((actual, expected) -> {
-    boolean result = Objects.nonNull(actual) && !actual.isEmpty();
+    boolean result = ObjectUtils.isNotEmpty(actual);
     logOperation("STRING_IS_NOT_EMPTY", result, actual, expected);
     return result;
   }),
 
   /** Строка {@code null} или состоит из пробелов. */
   STRING_IS_BLANK((actual, expected) -> {
-    boolean result = Objects.isNull(actual) || actual.isBlank();
+    boolean result = StringUtils.isBlank(actual);
     logOperation("STRING_IS_BLANK", result, actual, expected);
     return result;
   }),
 
   /** Строка непустая и не состоит из пробелов. */
   STRING_IS_NOT_BLANK((actual, expected) -> {
-    boolean result = Objects.nonNull(actual) && !actual.isBlank();
+    boolean result = StringUtils.isNotBlank(actual);
     logOperation("STRING_IS_NOT_BLANK", result, actual, expected);
     return result;
   }),
@@ -221,16 +223,16 @@ public enum ConditionOperator {
   private final BiFunction<String, List<String>, Boolean> evaluator;
 
   /**
-   * @param evaluator фактическое значение → ожидаемые значения → результат
+   * @param evaluator фактическое значение → ожидаемые значения → результат.
    */
   ConditionOperator(BiFunction<String, List<String>, Boolean> evaluator) {
     this.evaluator = evaluator;
   }
 
   /**
-   * @param actualValue    результат экстрактора; {@code null} допустим
-   * @param expectedValues значения из {@code conditions.*.values}; {@code null} → {@code false}
-   * @return {@code true}, если оператор выполняется
+   * @param actualValue    результат экстрактора; {@code null} допустим.
+   * @param expectedValues значения из {@code conditions.*.values}; {@code null} → {@code false}.
+   * @return {@code true}, если оператор выполняется.
    */
   public boolean evaluate(String actualValue, List<String> expectedValues) {
     if (Objects.isNull(expectedValues)) {
@@ -246,37 +248,70 @@ public enum ConditionOperator {
     return this.evaluator.apply(actualValue, expectedValues);
   }
 
+  /**
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые фрагменты.
+   * @return {@code true}, если строка содержит все ожидаемые фрагменты.
+   */
   private static boolean containsAll(String actual, List<String> expected) {
-    return Objects.nonNull(actual) && !expected.isEmpty() && expected.stream().allMatch(actual::contains);
+    return Objects.nonNull(actual) && ObjectUtils.isNotEmpty(expected) && expected.stream().allMatch(actual::contains);
   }
 
+  /**
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые фрагменты.
+   * @return {@code true}, если строка содержит хотя бы один ожидаемый фрагмент.
+   */
   private static boolean containsAny(String actual, List<String> expected) {
-    return Objects.nonNull(actual) && !expected.isEmpty() && expected.stream().anyMatch(actual::contains);
+    return Objects.nonNull(actual) && ObjectUtils.isNotEmpty(expected) && expected.stream().anyMatch(actual::contains);
   }
 
+  /**
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые фрагменты.
+   * @return {@code true}, если строка не содержит ни одного ожидаемого фрагмента.
+   */
   private static boolean containsNone(String actual, List<String> expected) {
-    return Objects.isNull(actual) || expected.isEmpty() || expected.stream().noneMatch(actual::contains);
+    return Objects.isNull(actual) || ObjectUtils.isEmpty(expected) || expected.stream().noneMatch(actual::contains);
   }
 
+  /**
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые префиксы.
+   * @return {@code true}, если строка начинается со всех ожидаемых префиксов.
+   */
   private static boolean startsWithAll(String actual, List<String> expected) {
-    return Objects.nonNull(actual) && !expected.isEmpty() && expected.stream().allMatch(actual::startsWith);
+    return Objects.nonNull(actual) && ObjectUtils.isNotEmpty(expected) && expected.stream().allMatch(actual::startsWith);
   }
 
+  /**
+   * @param actual   фактическое значение.
+   * @param expected ожидаемые суффиксы.
+   * @return {@code true}, если строка заканчивается всеми ожидаемыми суффиксами.
+   */
   private static boolean endsWithAll(String actual, List<String> expected) {
-    return Objects.nonNull(actual) && !expected.isEmpty() && expected.stream().allMatch(actual::endsWith);
+    return Objects.nonNull(actual) && ObjectUtils.isNotEmpty(expected) && expected.stream().allMatch(actual::endsWith);
   }
 
+  /**
+   * @param actual фактическое значение.
+   * @return {@code true}, если значение — пустой JSON-массив.
+   */
   private static boolean isJsonArrayEmpty(String actual) {
     if (Objects.isNull(actual)) {
       return false;
     }
     final String trimmed = actual.trim();
-    return trimmed.equals(AuditTextConstants.EMPTY_JSON_ARRAY)
+    return Objects.equals(trimmed, AuditTextConstants.EMPTY_JSON_ARRAY)
         || (trimmed.startsWith(AuditTextConstants.JSON_ARRAY_START)
             && trimmed.endsWith(AuditTextConstants.JSON_ARRAY_END)
-            && jsonArrayInnerContent(trimmed).isEmpty());
+            && ObjectUtils.isEmpty(jsonArrayInnerContent(trimmed)));
   }
 
+  /**
+   * @param actual фактическое значение.
+   * @return {@code true}, если значение — непустой JSON-массив.
+   */
   private static boolean isJsonArrayNotEmpty(String actual) {
     if (Objects.isNull(actual)) {
       return false;
@@ -284,9 +319,17 @@ public enum ConditionOperator {
     final String trimmed = actual.trim();
     return trimmed.startsWith(AuditTextConstants.JSON_ARRAY_START)
         && trimmed.endsWith(AuditTextConstants.JSON_ARRAY_END)
-        && !jsonArrayInnerContent(trimmed).isEmpty();
+        && ObjectUtils.isNotEmpty(jsonArrayInnerContent(trimmed));
   }
 
+  /**
+   * Пишет DEBUG-лог результата оператора.
+   *
+   * @param operatorName имя оператора.
+   * @param result       результат сравнения.
+   * @param actual       фактическое значение.
+   * @param expected     ожидаемые значения YAML.
+   */
   private static void logOperation(String operatorName, boolean result, String actual, List<String> expected) {
     if (LOG.isDebugEnabled()) {
       LOG.debug(
@@ -299,6 +342,10 @@ public enum ConditionOperator {
     }
   }
 
+  /**
+   * @param value исходная строка.
+   * @return обрезанное представление для DEBUG-лога.
+   */
   private static String truncateForLog(String value) {
     final int maxLogLength = 200;
     return Objects.isNull(value)
@@ -309,7 +356,12 @@ public enum ConditionOperator {
   }
 
   /**
-   * @param mode 0 равно, 1 больше, -1 меньше, 2 больше или равно, -2 меньше или равно
+   * Сравнивает размер JSON-массива с ожидаемым значением.
+   *
+   * @param actual   фактическое значение.
+   * @param expected список из одного ожидаемого размера.
+   * @param mode     0 равно, 1 больше, -1 меньше, 2 больше или равно, -2 меньше или равно.
+   * @return {@code true}, если сравнение размера удовлетворяет {@code mode}.
    */
   private static boolean compareCollectionSize(String actual, List<String> expected, int mode) {
     if (Objects.isNull(actual) || expected.size() != AuditNumericConstants.ONE) {
@@ -330,6 +382,10 @@ public enum ConditionOperator {
         .getOrElse(false);
   }
 
+  /**
+   * @param value текстовое представление JSON-массива.
+   * @return размер массива либо {@link AuditNumericConstants#MINUS_ONE}.
+   */
   private static int getCollectionSize(String value) {
     if (Objects.isNull(value)) {
       return AuditNumericConstants.MINUS_ONE;
@@ -340,13 +396,21 @@ public enum ConditionOperator {
       return AuditNumericConstants.MINUS_ONE;
     }
     final String content = jsonArrayInnerContent(trimmed);
-    return content.isEmpty() ? AuditNumericConstants.ZERO : countJsonArrayElements(content);
+    return ObjectUtils.isEmpty(content) ? AuditNumericConstants.ZERO : countJsonArrayElements(content);
   }
 
+  /**
+   * @param jsonArray строка массива вместе со скобками.
+   * @return внутренность массива без крайних пробелов.
+   */
   private static String jsonArrayInnerContent(String jsonArray) {
     return jsonArray.substring(AuditNumericConstants.ONE, jsonArray.length() - AuditNumericConstants.ONE).trim();
   }
 
+  /**
+   * @param jsonArrayContent содержимое массива без {@code [} и {@code ]}.
+   * @return число элементов.
+   */
   private static int countJsonArrayElements(String jsonArrayContent) {
     int count = AuditNumericConstants.ZERO;
     int depth = AuditNumericConstants.ZERO;
@@ -371,6 +435,13 @@ public enum ConditionOperator {
     return count + AuditNumericConstants.ONE;
   }
 
+  /**
+   * Сравнивает два значения как числа, иначе как строки.
+   *
+   * @param actual   фактическое значение.
+   * @param expected ожидаемое значение.
+   * @return результат {@link Double#compare} или {@link String#compareTo}.
+   */
   private static int compareValues(String actual, String expected) {
     if (Objects.isNull(actual) || Objects.isNull(expected)) {
       return AuditNumericConstants.MINUS_ONE;

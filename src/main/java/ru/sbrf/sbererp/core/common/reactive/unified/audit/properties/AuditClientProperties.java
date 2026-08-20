@@ -10,8 +10,8 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditConfigurati
 /**
  * YAML {@code audit.client}: свойства билдера SBT-клиента и заголовок метамодели.
  *
- * @param config    ключ свойства → значение из {@code audit.client.config}
- * @param metaModel обязательный {@link MetaModelTitleHolder}
+ * @param config    ключ свойства → значение из {@code audit.client.config}.
+ * @param metaModel обязательный {@link MetaModelTitleHolder}.
  */
 @ConfigurationProperties(prefix = AuditConfigurationFieldNames.AUDIT_CLIENT_PREFIX)
 public record AuditClientProperties(Map<String, String> config, MetaModelTitleHolder metaModel) {

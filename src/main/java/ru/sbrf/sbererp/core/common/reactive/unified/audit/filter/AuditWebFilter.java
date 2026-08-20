@@ -32,8 +32,10 @@ public final class AuditWebFilter implements WebFilter {
   private final List<PathPattern> excludePathPatterns;
 
   /**
-   * @param auditEventResolver резолвер события после цепочки
-   * @param reactiveProperties лимит тел и exclude-пути
+   * Создаёт WebFlux-фильтр аудита: захват тел и вызов резолвера после цепочки.
+   *
+   * @param auditEventResolver резолвер события после цепочки.
+   * @param reactiveProperties лимит тел и exclude-пути.
    */
   public AuditWebFilter(
       AuditEventResolver auditEventResolver,
@@ -46,9 +48,9 @@ public final class AuditWebFilter implements WebFilter {
   /**
    * Оборачивает обмен декораторами захвата тел, пропускает цепочку и отправляет событие аудита.
    *
-   * @param exchange текущий обмен
-   * @param chain    оставшаяся цепочка фильтров
-   * @return сигнал завершения
+   * @param exchange текущий обмен.
+   * @param chain    оставшаяся цепочка фильтров.
+   * @return сигнал завершения.
    */
   @Override
   @NonNull
@@ -69,8 +71,8 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * @param exchange текущий обмен
-   * @return {@code true}, если путь совпал с {@code audit.reactive.exclude-path-patterns}
+   * @param exchange текущий обмен.
+   * @return {@code true}, если путь совпал с {@code audit.reactive.exclude-path-patterns}.
    */
   private boolean isExcluded(ServerWebExchange exchange) {
     return AuditReactiveProperties.matchesAny(
@@ -80,8 +82,8 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * @param exchange текущий обмен
-   * @return декоратор захвата либо {@code null} для GET
+   * @param exchange текущий обмен.
+   * @return декоратор захвата либо {@code null} для GET.
    */
   private CapturingServerHttpRequest capturingRequest(ServerWebExchange exchange) {
     if (isGetRequest(exchange)) {
@@ -96,8 +98,8 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * @param exchange текущий обмен
-   * @return {@code true}, если метод GET
+   * @param exchange текущий обмен.
+   * @return {@code true}, если метод GET.
    */
   private boolean isGetRequest(ServerWebExchange exchange) {
     final HttpMethod method = exchange.getRequest().getMethod();
@@ -108,10 +110,10 @@ public final class AuditWebFilter implements WebFilter {
   /**
    * Оборачивает ответ декоратором захвата, выполняет цепочку и аудирует результат.
    *
-   * @param exchange         текущий обмен
-   * @param chain            цепочка фильтров
-   * @param capturingRequest декоратор запроса либо {@code null} для GET
-   * @return сигнал завершения
+   * @param exchange         текущий обмен.
+   * @param chain            цепочка фильтров.
+   * @param capturingRequest декоратор запроса либо {@code null} для GET.
+   * @return сигнал завершения.
    */
   private Mono<Void> filterWithResponseCapture(
       ServerWebExchange exchange,
@@ -128,10 +130,10 @@ public final class AuditWebFilter implements WebFilter {
   /**
    * Дочитывает непрочитанное тело запроса, сохраняет кэш и отправляет событие.
    *
-   * @param exchange          обмен с декораторами
-   * @param capturingRequest  декоратор запроса либо {@code null}
-   * @param capturingResponse декоратор ответа
-   * @return сигнал завершения аудита
+   * @param exchange          обмен с декораторами.
+   * @param capturingRequest  декоратор запроса либо {@code null}.
+   * @param capturingResponse декоратор ответа.
+   * @return сигнал завершения аудита.
    */
   private Mono<Void> afterChain(
       ServerWebExchange exchange,
@@ -143,8 +145,8 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * @param capturingRequest декоратор запроса либо {@code null}
-   * @return сигнал дочитывания тела либо пустой {@link Mono}
+   * @param capturingRequest декоратор запроса либо {@code null}.
+   * @return сигнал дочитывания тела либо пустой {@link Mono}.
    */
   private Mono<Void> captureUnreadRequestBody(CapturingServerHttpRequest capturingRequest) {
     return Objects.isNull(capturingRequest) ? Mono.empty() : capturingRequest.captureUnreadBody();
@@ -153,9 +155,9 @@ public final class AuditWebFilter implements WebFilter {
   /**
    * Кладёт кэш тел в атрибуты обмена.
    *
-   * @param exchange          текущий обмен
-   * @param capturingRequest  декоратор запроса либо {@code null}
-   * @param capturingResponse декоратор ответа
+   * @param exchange          текущий обмен.
+   * @param capturingRequest  декоратор запроса либо {@code null}.
+   * @param capturingResponse декоратор ответа.
    */
   private void storeBodies(
       ServerWebExchange exchange,
@@ -173,8 +175,8 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * @param exchange         текущий обмен
-   * @param capturingRequest декоратор запроса либо {@code null}
+   * @param exchange         текущий обмен.
+   * @param capturingRequest декоратор запроса либо {@code null}.
    */
   private void storeRequestBody(
       ServerWebExchange exchange,
@@ -194,11 +196,11 @@ public final class AuditWebFilter implements WebFilter {
   /**
    * Выполняет аудит при ошибке цепочки и пробрасывает исходное исключение.
    *
-   * @param exchange          обмен
-   * @param capturingRequest  декоратор запроса либо {@code null}
-   * @param capturingResponse декоратор ответа
-   * @param error             ошибка цепочки
-   * @return сигнал ошибки после аудита
+   * @param exchange          обмен.
+   * @param capturingRequest  декоратор запроса либо {@code null}.
+   * @param capturingResponse декоратор ответа.
+   * @param error             ошибка цепочки.
+   * @return сигнал ошибки после аудита.
    */
   private Mono<Void> auditThenRethrow(
       ServerWebExchange exchange,

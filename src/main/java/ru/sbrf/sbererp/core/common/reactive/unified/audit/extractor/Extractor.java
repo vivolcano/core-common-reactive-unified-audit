@@ -13,20 +13,24 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditExceptionMe
 public interface Extractor {
 
   /**
-   * @param exchange текущий обмен
-   * @param holder   параметр или условие
-   * @return строка для события либо {@code null}
-   * @throws UnifiedAuditException если экстрактор не работает с запросом
+   * Извлекает значение из HTTP-запроса.
+   *
+   * @param exchange текущий обмен.
+   * @param holder   параметр или условие.
+   * @return строка для события либо {@code null}.
+   * @throws UnifiedAuditException если экстрактор не работает с запросом.
    */
   default String extractRequest(ServerWebExchange exchange, Holder holder) {
     throw new UnifiedAuditException(AuditExceptionMessages.EXTRACTION_NOT_SUPPORTED_FOR, holder.getName());
   }
 
   /**
-   * @param exchange текущий обмен
-   * @param holder   параметр или условие
-   * @return строка для события либо {@code null}
-   * @throws UnifiedAuditException если экстрактор не работает с ответом
+   * Извлекает значение из HTTP-ответа.
+   *
+   * @param exchange текущий обмен.
+   * @param holder   параметр или условие.
+   * @return строка для события либо {@code null}.
+   * @throws UnifiedAuditException если экстрактор не работает с ответом.
    */
   default String extractResponse(ServerWebExchange exchange, Holder holder) {
     throw new UnifiedAuditException(AuditExceptionMessages.EXTRACTION_NOT_SUPPORTED_FOR, holder.getName());

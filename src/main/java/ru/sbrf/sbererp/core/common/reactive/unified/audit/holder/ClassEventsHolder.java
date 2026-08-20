@@ -19,8 +19,10 @@ public final class ClassEventsHolder {
   private final Map<String, MethodEventsHolder> eventsMap;
 
   /**
-   * @param controllerClass класс контроллера
-   * @param events          имя метода контроллера → список {@link EventHolder}
+   * Конструктор привязки YAML: ключ {@code events} преобразуется в {@link MethodEventsHolder}.
+   *
+   * @param controllerClass класс контроллера.
+   * @param events          имя метода контроллера → список {@link EventHolder}.
    */
   @ConstructorBinding
   public ClassEventsHolder(Class<?> controllerClass, Map<String, List<EventHolder>> events) {
@@ -34,21 +36,27 @@ public final class ClassEventsHolder {
   }
 
   /**
-   * @return класс контроллера
+   * Возвращает класс контроллера.
+   *
+   * @return класс контроллера.
    */
   public Class<?> controllerClass() {
     return controllerClass;
   }
 
   /**
-   * @return имя метода контроллера → {@link MethodEventsHolder}
+   * Возвращает имя метода контроллера → {@link MethodEventsHolder}.
+   *
+   * @return имя метода контроллера → {@link MethodEventsHolder}.
    */
   public Map<String, MethodEventsHolder> eventsMap() {
     return eventsMap;
   }
 
   /**
-   * @return плоский список событий контроллера для регистрации метамодели
+   * Возвращает плоский список событий контроллера для регистрации метамодели.
+   *
+   * @return плоский список событий контроллера для регистрации метамодели.
    */
   public List<EventHolder> classEventHolderList() {
     return eventsMap.values().stream()

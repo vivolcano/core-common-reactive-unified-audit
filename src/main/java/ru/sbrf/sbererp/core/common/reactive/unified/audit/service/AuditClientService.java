@@ -13,8 +13,8 @@ public interface AuditClientService {
   /**
    * Конвертирует адаптер в модель SBT и регистрирует событие.
    *
-   * @param event собранное событие
-   * @return {@link Mono#empty()} после попытки отправки
+   * @param event собранное событие.
+   * @return {@link Mono#empty()} после попытки отправки.
    */
   Mono<Void> sendEvent(EventAdapter event);
 }

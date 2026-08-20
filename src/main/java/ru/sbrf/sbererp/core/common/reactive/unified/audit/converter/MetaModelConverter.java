@@ -28,7 +28,7 @@ public final class MetaModelConverter {
   private final AuditClientProperties properties;
 
   /**
-   * @return метамодель для АС Единый Аудит
+   * @return метамодель для АС Единый Аудит.
    */
   public Metamodel create() {
     return Metamodel.builder()
@@ -39,7 +39,7 @@ public final class MetaModelConverter {
   }
 
   /**
-   * @return коллекция {@link EventMetaInfo}
+   * @return коллекция {@link EventMetaInfo}.
    */
   private EventMetaInfos createEventMetaInfos() {
     return this.config.metamodelEvents().stream()
@@ -48,8 +48,8 @@ public final class MetaModelConverter {
   }
 
   /**
-   * @param event внутреннее представление события
-   * @return метаданные события SBT
+   * @param event внутреннее представление события.
+   * @return метаданные события SBT.
    */
   private EventMetaInfo createMetaInfoParams(EventHolder event) {
     return EventMetaInfo.builder()
@@ -63,8 +63,8 @@ public final class MetaModelConverter {
   }
 
   /**
-   * @param params список внутренних параметров события
-   * @return коллекция параметров SBT
+   * @param params список внутренних параметров события.
+   * @return коллекция параметров SBT.
    */
   private MetaInfoParams toMetaInfoParams(List<ParamHolder> params) {
     return params.stream()
@@ -73,8 +73,8 @@ public final class MetaModelConverter {
   }
 
   /**
-   * @param param внутренний параметр события
-   * @return параметр SBT
+   * @param param внутренний параметр события.
+   * @return параметр SBT.
    */
   private MetaInfoParam toMetaInfoParam(ParamHolder param) {
     return MetaInfoParam.builder()

@@ -25,8 +25,8 @@ public final class EventConverter {
   /**
    * Собирает {@link Event} из адаптера и {@link AuditClientProperties#metaModel()}.
    *
-   * @param baseEvent внутреннее событие после резолвера
-   * @return модель SBT для {@link com.sbt.audit.core.service.AuditService#audit(Event)}
+   * @param baseEvent внутреннее событие после резолвера.
+   * @return модель SBT для {@link com.sbt.audit.core.service.AuditService#audit(Event)}.
    */
   public Event convert(EventAdapter baseEvent) {
     return Event.builder()
@@ -47,8 +47,8 @@ public final class EventConverter {
   }
 
   /**
-   * @param params {@link ParamHolder} → строка экстрактора
-   * @return коллекция SBT; пустая, если мапа пустая
+   * @param params {@link ParamHolder} → строка экстрактора.
+   * @return коллекция SBT; пустая, если мапа пустая.
    */
   private EventParams createParams(Map<ParamHolder, String> params) {
     return params.entrySet().stream()
@@ -57,9 +57,9 @@ public final class EventConverter {
   }
 
   /**
-   * @param event YAML-параметр
-   * @param value извлечённое значение
-   * @return элемент {@link EventParams}
+   * @param event YAML-параметр.
+   * @param value извлечённое значение.
+   * @return элемент {@link EventParams}.
    */
   private EventParam createParam(ParamHolder event, String value) {
     return EventParam.builder()

@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * События одного метода контроллера.
  *
- * @param methodEventHolders список YAML-событий метода
+ * @param methodEventHolders список YAML-событий метода.
  */
 public record MethodEventsHolder(List<EventHolder> methodEventHolders) {
 }

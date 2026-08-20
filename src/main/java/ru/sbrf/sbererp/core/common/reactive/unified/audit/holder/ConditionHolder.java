@@ -13,11 +13,11 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditConfigurati
 /**
  * YAML-условие события. {@code field} биндится в {@code name}; экстрактор ставит биндер.
  *
- * @param name      имя поля из YAML {@code field}
- * @param operator  оператор сравнения {@link ConditionOperator}
- * @param values    ожидаемые значения; {@code null} → пустой список
- * @param extractor стратегия чтения обмена
- * @param key       ключ извлечения; по умолчанию {@code name}
+ * @param name      имя поля из YAML {@code field}.
+ * @param operator  оператор сравнения {@link ConditionOperator}.
+ * @param values    ожидаемые значения; {@code null} → пустой список.
+ * @param extractor стратегия чтения обмена.
+ * @param key       ключ извлечения; по умолчанию {@code name}.
  */
 public record ConditionHolder(
     String name,
@@ -28,9 +28,11 @@ public record ConditionHolder(
 ) implements Holder {
 
   /**
-   * @param name     имя поля условия
-   * @param operator оператор сравнения
-   * @param values   ожидаемые значения; {@code null} заменяется пустым списком
+   * Конструктор привязки YAML. Ключ {@code field} отображается на {@code name}.
+   *
+   * @param name     имя поля условия.
+   * @param operator оператор сравнения.
+   * @param values   ожидаемые значения; {@code null} заменяется пустым списком.
    */
   @ConstructorBinding
   public ConditionHolder(

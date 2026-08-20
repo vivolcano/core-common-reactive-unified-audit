@@ -1,5 +1,6 @@
 package ru.sbrf.sbererp.core.common.reactive.unified.audit.web;
 
+import java.util.Objects;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferLimitException;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -26,8 +27,10 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
   private boolean finished;
 
   /**
-   * @param delegate     исходный запрос
-   * @param maxBodyBytes лимит буферизации для аудита
+   * Оборачивает исходный запрос декоратором захвата тела.
+   *
+   * @param delegate     исходный запрос.
+   * @param maxBodyBytes лимит буферизации для аудита.
    */
   public CapturingServerHttpRequest(ServerHttpRequest delegate, int maxBodyBytes) {
     super(delegate);
@@ -36,14 +39,18 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
   }
 
   /**
-   * @return тело для аудита либо пустой массив при превышении лимита
+   * Возвращает тело, скопированное для аудита.
+   *
+   * @return тело для аудита либо пустой массив при превышении лимита.
    */
   public byte[] capturedBody() {
     return capture.capturedBody();
   }
 
   /**
-   * @return {@code true}, если кто-то уже подписался на {@link #getBody()}
+   * Показывает, подписался ли кто-то на {@link #getBody()}.
+   *
+   * @return {@code true}, если кто-то уже подписался на {@link #getBody()}.
    */
   public boolean isSubscribed() {
     synchronized (this) {
@@ -54,7 +61,7 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
   /**
    * Читает тело для аудита, если контроллер его не потреблял.
    *
-   * @return сигнал завершения чтения
+   * @return сигнал завершения чтения.
    */
   public Mono<Void> captureUnreadBody() {
     return isSubscribed()
@@ -68,7 +75,7 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
   /**
    * Первый вызов отдаёт live-поток; после завершения — replay из кэша аудита.
    *
-   * @return тело запроса
+   * @return тело запроса.
    */
   @Override
   public Flux<DataBuffer> getBody() {
@@ -77,7 +84,7 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
       if (finished) {
         return replayCaptured();
       }
-      if (liveBody == null) {
+      if (Objects.isNull(liveBody)) {
         liveBody = super.getBody()
             .doOnNext(capture::append)
             .doOnComplete(this::markFinished)
@@ -87,6 +94,9 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
     }
   }
 
+  /**
+   * Помечает, что live-поток тела завершился и дальше можно отдавать replay.
+   */
   private void markFinished() {
     synchronized (this) {
       finished = true;
@@ -94,7 +104,7 @@ public final class CapturingServerHttpRequest extends ServerHttpRequestDecorator
   }
 
   /**
-   * @return replay кэша либо пустой {@link Flux}
+   * @return replay кэша либо пустой {@link Flux}.
    */
   private Flux<DataBuffer> replayCaptured() {
     final byte[] bytes = capture.capturedBody();

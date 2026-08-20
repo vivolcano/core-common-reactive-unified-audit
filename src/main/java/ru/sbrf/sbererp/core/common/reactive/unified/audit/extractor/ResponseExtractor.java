@@ -21,6 +21,9 @@ public enum ResponseExtractor implements Extractor {
    * HTTP-статус ответа.
    */
   RESPONSE_CODE {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractResponse(ServerWebExchange exchange, Holder holder) {
       final HttpStatusCode status = exchange.getResponse().getStatusCode();
@@ -33,6 +36,9 @@ public enum ResponseExtractor implements Extractor {
    * HTTP-заголовки ответа.
    */
   RESPONSE_HEADER {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractResponse(ServerWebExchange exchange, Holder holder) {
       final List<String> headerValues = exchange.getResponse().getHeaders().get(holder.getKey());
@@ -46,6 +52,9 @@ public enum ResponseExtractor implements Extractor {
    * Поле JSON-тела ответа либо тело целиком, если поле не найдено.
    */
   RESPONSE_BODY {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractResponse(ServerWebExchange exchange, Holder holder) {
       final String jsonString = AuditJsonExtractionUtils.parseResponseBody(exchange);

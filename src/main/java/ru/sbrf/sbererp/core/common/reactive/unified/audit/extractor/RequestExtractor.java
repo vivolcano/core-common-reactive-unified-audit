@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import org.apache.commons.lang3.ObjectUtils;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -32,6 +32,9 @@ public enum RequestExtractor implements Extractor {
    * URI-шаблон ({@link PathVariable}).
    */
   PATH_VARIABLE(PathVariable.class, RequestExtractor::pathVariableName) {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       final Map<String, String> pathVariables = exchange.getAttribute(
@@ -45,6 +48,9 @@ public enum RequestExtractor implements Extractor {
    * Query-параметры ({@link RequestParam}).
    */
   REQUEST_PARAM(RequestParam.class, RequestExtractor::requestParamName) {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       final List<String> values = exchange.getRequest().getQueryParams().get(holder.getKey());
@@ -56,6 +62,9 @@ public enum RequestExtractor implements Extractor {
    * HTTP-заголовки запроса ({@link RequestHeader}).
    */
   REQUEST_HEADER(RequestHeader.class, RequestExtractor::requestHeaderName) {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       final List<String> values = exchange.getRequest().getHeaders().get(holder.getKey());
@@ -67,6 +76,9 @@ public enum RequestExtractor implements Extractor {
    * Тело запроса целиком ({@link RequestBody}).
    */
   REQUEST_BODY(RequestBody.class, annotation -> null) {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       return AuditJsonExtractionUtils.preparationString(AuditJsonExtractionUtils.parseRequestBody(exchange), holder);
@@ -77,6 +89,9 @@ public enum RequestExtractor implements Extractor {
    * Поле JSON-тела запроса.
    */
   REQUEST_BODY_FIELD(null, null) {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       return AuditJsonExtractionUtils.extractFieldValue(AuditJsonExtractionUtils.parseRequestBody(exchange), holder);
@@ -87,6 +102,9 @@ public enum RequestExtractor implements Extractor {
    * Параметры пагинации ({@code page}, {@code size}, {@code sort}).
    */
   PAGEABLE(null, null) {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       return AuditJsonExtractionUtils.getPageableParams(exchange.getRequest());
@@ -97,6 +115,9 @@ public enum RequestExtractor implements Extractor {
    * JWT-claim из мапы claim → значение в атрибутах обмена.
    */
   CLAIM(null, null) {
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String extractRequest(ServerWebExchange exchange, Holder holder) {
       final String claimName = Objects.requireNonNullElse(holder.getKey(), holder.getName());
@@ -111,8 +132,10 @@ public enum RequestExtractor implements Extractor {
   private final Function<Annotation, String> nameExtractor;
 
   /**
-   * @param annotationClass класс аннотации источника
-   * @param nameExtractor   функция {@link Annotation} → имя параметра
+   * Сохраняет класс аннотации источника и функцию извлечения имени.
+   *
+   * @param annotationClass класс аннотации источника.
+   * @param nameExtractor   функция {@link Annotation} → имя параметра.
    */
   @SuppressWarnings("unchecked")
   <T extends Annotation> RequestExtractor(
@@ -125,8 +148,8 @@ public enum RequestExtractor implements Extractor {
   /**
    * Выбирает экстрактор по аннотации параметра и устанавливает ключ.
    *
-   * @param parameter параметр метода контроллера
-   * @param holder    держатель параметра или условия
+   * @param parameter параметр метода контроллера.
+   * @param holder    держатель параметра или условия.
    */
   public static void setExtractor(Parameter parameter, Holder holder) {
     if (Objects.nonNull(holder.getExtractor())) {
@@ -142,15 +165,17 @@ public enum RequestExtractor implements Extractor {
   /**
    * Ставит экстрактор по умолчанию ({@link #REQUEST_BODY_FIELD}).
    *
-   * @param holder держатель параметра
+   * @param holder держатель параметра.
    */
   public static void setExtractor(Holder holder) {
     holder.setExtractor(REQUEST_BODY_FIELD);
   }
 
   /**
-   * @param parameter параметр метода
-   * @return найденный экстрактор
+   * Ищет экстрактор по аннотации параметра метода.
+   *
+   * @param parameter параметр метода.
+   * @return найденный экстрактор.
    */
   private static Option<RequestExtractor> findExtractorByAnnotation(Parameter parameter) {
     return Option.ofOptional(
@@ -161,24 +186,43 @@ public enum RequestExtractor implements Extractor {
     );
   }
 
+  /**
+   * Привязывает найденный экстрактор и ключ к держателю.
+   *
+   * @param parameter параметр метода {@link Parameter}.
+   * @param holder    держатель {@link Holder}.
+   * @param extractor найденный {@link RequestExtractor}.
+   */
   private static void bindExtractor(Parameter parameter, Holder holder, RequestExtractor extractor) {
     final Annotation annotation = parameter.getAnnotation(extractor.annotationClass);
     final String key = extractor.nameExtractor.apply(annotation);
     holder.setExtractor(extractor);
     if (Objects.isNull(holder.getKey())) {
-      holder.setKey(StringUtils.hasText(key) ? key : parameter.getName());
+      holder.setKey(StringUtils.isNotBlank(key) ? key : parameter.getName());
     }
   }
 
+  /**
+   * @param pathVariable аннотация {@link PathVariable}.
+   * @return имя переменной пути.
+   */
   private static String pathVariableName(PathVariable pathVariable) {
-    return pathVariable.name().isEmpty() ? pathVariable.value() : pathVariable.name();
+    return ObjectUtils.isEmpty(pathVariable.name()) ? pathVariable.value() : pathVariable.name();
   }
 
+  /**
+   * @param requestParam аннотация {@link RequestParam}.
+   * @return имя query-параметра.
+   */
   private static String requestParamName(RequestParam requestParam) {
-    return requestParam.name().isEmpty() ? requestParam.value() : requestParam.name();
+    return ObjectUtils.isEmpty(requestParam.name()) ? requestParam.value() : requestParam.name();
   }
 
+  /**
+   * @param requestHeader аннотация {@link RequestHeader}.
+   * @return имя HTTP-заголовка.
+   */
   private static String requestHeaderName(RequestHeader requestHeader) {
-    return requestHeader.name().isEmpty() ? requestHeader.value() : requestHeader.name();
+    return ObjectUtils.isEmpty(requestHeader.name()) ? requestHeader.value() : requestHeader.name();
   }
 }

@@ -32,8 +32,10 @@ public final class AuditJsonExtractionUtils {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   /**
-   * @param exchange текущий обмен
-   * @return JSON-строка тела запроса либо {@code null}
+   * Парсит тело HTTP-запроса в строку JSON из кэша обмена.
+   *
+   * @param exchange текущий обмен.
+   * @return JSON-строка тела запроса либо {@code null}.
    */
   public static String parseRequestBody(ServerWebExchange exchange) {
     final byte[] body = cachedBody(exchange, AuditExchangeAttributeNames.CACHED_REQUEST_BODY);
@@ -48,8 +50,10 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param exchange текущий обмен
-   * @return JSON-строка тела ответа либо {@code null}
+   * Парсит тело HTTP-ответа в строку JSON из кэша обмена.
+   *
+   * @param exchange текущий обмен.
+   * @return JSON-строка тела ответа либо {@code null}.
    */
   public static String parseResponseBody(ServerWebExchange exchange) {
     final byte[] body = cachedBody(exchange, AuditExchangeAttributeNames.CACHED_RESPONSE_BODY);
@@ -64,9 +68,9 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param exchange      текущий обмен
-   * @param attributeName ключ атрибута
-   * @return байты тела либо пустой массив
+   * @param exchange      текущий обмен.
+   * @param attributeName ключ атрибута.
+   * @return байты тела либо пустой массив.
    */
   private static byte[] cachedBody(ServerWebExchange exchange, String attributeName) {
     final Object stored = exchange.getAttribute(attributeName);
@@ -74,9 +78,9 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param body        байты тела
-   * @param contentType тип содержимого
-   * @return {@code true}, если тело можно разбирать
+   * @param body        байты тела.
+   * @param contentType тип содержимого.
+   * @return {@code true}, если тело можно разбирать.
    */
   private static boolean isExtractableBody(byte[] body, MediaType contentType) {
     if (ObjectUtils.isEmpty(body) || Objects.isNull(contentType)) {
@@ -90,9 +94,9 @@ public final class AuditJsonExtractionUtils {
   /**
    * Ищет поле по имени рекурсивно. В массив заходит только если в нём ровно один элемент.
    *
-   * @param jsonString JSON тела
-   * @param holder     имя/ключ поля и опциональные маски
-   * @return текстовое значение, JSON узла либо {@code null}
+   * @param jsonString JSON тела.
+   * @param holder     имя/ключ поля и опциональные маски.
+   * @return текстовое значение, JSON узла либо {@code null}.
    */
   public static String extractFieldValue(String jsonString, Holder holder) {
     final String fieldName = Objects.requireNonNullElse(holder.getKey(), holder.getName());
@@ -116,9 +120,9 @@ public final class AuditJsonExtractionUtils {
   /**
    * Маскирует поля {@link ParamHolder#masks()} и возвращает тело как один параметр события.
    *
-   * @param jsonString JSON-строка
-   * @param holder     держатель с опциональными масками
-   * @return обработанная JSON-строка либо исходная при ошибке
+   * @param jsonString JSON-строка.
+   * @param holder     держатель с опциональными масками.
+   * @return обработанная JSON-строка либо исходная при ошибке.
    */
   public static String preparationString(String jsonString, Holder holder) {
     return Try.of(() -> {
@@ -136,8 +140,10 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param request HTTP-запрос
-   * @return строка формата page/size/sort
+   * Извлекает параметры пагинации из HTTP-запроса.
+   *
+   * @param request HTTP-запрос.
+   * @return строка формата page/size/sort.
    */
   public static String getPageableParams(ServerHttpRequest request) {
     final MultiValueMap<String, String> queryParams = request.getQueryParams();
@@ -148,8 +154,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param sortParams значения query-параметра {@code sort}
-   * @return строка сортировки либо литерал {@code null}
+   * @param sortParams значения query-параметра {@code sort}.
+   * @return строка сортировки либо литерал {@code null}.
    */
   private static String formatSortParams(List<String> sortParams) {
     if (ObjectUtils.isEmpty(sortParams)) {
@@ -161,8 +167,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param param значение {@code sort}
-   * @return обрезанная строка либо {@code "null"}
+   * @param param значение {@code sort}.
+   * @return обрезанная строка либо {@code "null"}.
    */
   private static String trimOrNullLiteral(String param) {
     return Objects.isNull(param) ? AuditTextConstants.STRING_LITERAL_NULL : param.trim();
@@ -171,9 +177,9 @@ public final class AuditJsonExtractionUtils {
   /**
    * Ищет путь до поля. В массив заходит только при ровно одном элементе.
    *
-   * @param jsonString JSON-строка
-   * @param fieldName  имя поля
-   * @return {@link JsonPointer} либо {@code null}
+   * @param jsonString JSON-строка.
+   * @param fieldName  имя поля.
+   * @return {@link JsonPointer} либо {@code null}.
    */
   private static JsonPointer findFieldPath(String jsonString, String fieldName) {
     final JsonNode rootNode = readTree(jsonString);
@@ -183,10 +189,10 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node        текущий JSON-узел
-   * @param fieldName   имя искомого поля
-   * @param currentPath текущий JSON Pointer
-   * @return путь к полю либо {@code null}
+   * @param node        текущий JSON-узел.
+   * @param fieldName   имя искомого поля.
+   * @param currentPath текущий JSON Pointer.
+   * @return путь к полю либо {@code null}.
    */
   private static JsonPointer findIntoDepthFieldPath(
       JsonNode node, String fieldName, JsonPointer currentPath) {
@@ -227,9 +233,9 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param fieldNode найденный JSON-узел
-   * @param fieldName имя поля
-   * @return тот же узел
+   * @param fieldNode найденный JSON-узел.
+   * @param fieldName имя поля.
+   * @return тот же узел.
    */
   private static JsonNode processFieldForExtraction(JsonNode fieldNode, String fieldName) {
     if (fieldNode.isArray()) {
@@ -241,8 +247,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node JSON-узел
-   * @return текстовое значение, JSON-строка либо {@code null}
+   * @param node JSON-узел.
+   * @return текстовое значение, JSON-строка либо {@code null}.
    */
   private static String convertNodeToString(JsonNode node) {
     if (Objects.isNull(node) || node.isNull()) {
@@ -256,9 +262,9 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node  JSON-узел
-   * @param masks пути скрываемых полей
-   * @return строка с замаскированным JSON
+   * @param node  JSON-узел.
+   * @param masks пути скрываемых полей.
+   * @return строка с замаскированным JSON.
    */
   private static String applyMasking(JsonNode node, List<String> masks) {
     if (node.isObject()) {
@@ -274,10 +280,22 @@ public final class AuditJsonExtractionUtils {
     return convertNodeToString(node);
   }
 
+  /**
+   * Маскирует объекты внутри JSON-массива.
+   *
+   * @param arrayNode массив для маскирования.
+   * @param masks     пути скрываемых полей.
+   */
   private static void maskArrayElements(ArrayNode arrayNode, List<String> masks) {
     arrayNode.forEach(element -> maskObjectElement(element, masks));
   }
 
+  /**
+   * Маскирует поля, если элемент массива является объектом.
+   *
+   * @param element элемент массива.
+   * @param masks   пути скрываемых полей.
+   */
   private static void maskObjectElement(JsonNode element, List<String> masks) {
     if (element.isObject()) {
       maskFields((ObjectNode) element, masks);
@@ -285,8 +303,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param jsonString JSON-строка
-   * @return {@link JsonNode} либо {@code null}
+   * @param jsonString JSON-строка.
+   * @return {@link JsonNode} либо {@code null}.
    */
   private static JsonNode readTree(String jsonString) {
     return Try.of(() -> OBJECT_MAPPER.readTree(jsonString))
@@ -302,8 +320,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node  JSON-объект
-   * @param masks пути скрываемых полей
+   * @param node  JSON-объект.
+   * @param masks пути скрываемых полей.
    */
   private static void maskFields(ObjectNode node, List<String> masks) {
     if (Objects.isNull(node) || ObjectUtils.isEmpty(masks)) {
@@ -313,8 +331,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node JSON-объект
-   * @param path путь маскирования
+   * @param node JSON-объект.
+   * @param path путь маскирования.
    */
   private static void maskSinglePath(ObjectNode node, String path) {
     Try.run(() -> {
@@ -328,8 +346,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node      начальный JSON-узел
-   * @param fieldPath путь до скрываемого поля
+   * @param node      начальный JSON-узел.
+   * @param fieldPath путь до скрываемого поля.
    */
   private static void maskFieldInCollections(JsonNode node, String fieldPath) {
     final String[] pathParts = fieldPath.split(AuditTextConstants.JSON_PATH_DOT_SPLIT_REGEX);
@@ -337,9 +355,9 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node         текущий JSON-узел
-   * @param pathParts    части пути до поля
-   * @param currentIndex индекс текущей части пути
+   * @param node         текущий JSON-узел.
+   * @param pathParts    части пути до поля.
+   * @param currentIndex индекс текущей части пути.
    */
   private static void processNode(JsonNode node, String[] pathParts, int currentIndex) {
     if (Objects.isNull(node) || currentIndex >= pathParts.length) {
@@ -372,8 +390,8 @@ public final class AuditJsonExtractionUtils {
   }
 
   /**
-   * @param node    родительский JSON-объект
-   * @param pointer {@link JsonPointer} скрываемого поля
+   * @param node    родительский JSON-объект.
+   * @param pointer {@link JsonPointer} скрываемого поля.
    */
   private static void maskFieldUsingPointer(ObjectNode node, JsonPointer pointer) {
     final JsonNode parentNode = node.at(pointer.head());

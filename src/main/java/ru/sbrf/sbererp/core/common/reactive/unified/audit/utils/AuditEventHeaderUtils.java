@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 
@@ -21,19 +22,23 @@ public final class AuditEventHeaderUtils {
   private static final String NODE_ID = initializeNodeId();
 
   /**
-   * @return Node ID приложения
+   * Возвращает идентификатор узла приложения.
+   *
+   * @return Node ID приложения.
    */
   public static String getNodeId() {
     return NODE_ID;
   }
 
   /**
-   * @param tokenParamsMap JWT-claim → значение; логин берётся по ключу {@code sub}
-   * @return логин либо {@link AuditJwtConstants#NO_USER}
+   * Извлекает логин пользователя из JWT-claim {@code sub}.
+   *
+   * @param tokenParamsMap JWT-claim → значение; логин берётся по ключу {@code sub}.
+   * @return логин либо {@link AuditJwtConstants#NO_USER}.
    */
   public static String getUserLogin(Map<String, Object> tokenParamsMap) {
     return Option.of(getStringValue(tokenParamsMap, AuditJwtConstants.SUB))
-        .filter(sub -> !sub.isEmpty())
+        .filter(ObjectUtils::isNotEmpty)
         .getOrElse(() -> {
           log.debug(AuditLogMessages.NO_JWT_SUB_CLAIM);
           return AuditJwtConstants.NO_USER;
@@ -41,8 +46,10 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @param tokenParamsMap JWT-claim → значение
-   * @return полное имя либо {@link AuditJwtConstants#NO_USER_NAME}
+   * Извлекает полное имя пользователя из JWT-claims.
+   *
+   * @param tokenParamsMap JWT-claim → значение.
+   * @return полное имя либо {@link AuditJwtConstants#NO_USER_NAME}.
    */
   public static String getUserName(Map<String, Object> tokenParamsMap) {
     if (Objects.isNull(tokenParamsMap)) {
@@ -65,9 +72,11 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @param tokenParamsMap JWT-claim → значение
-   * @param key            ключ claim
-   * @return строковое значение без пробелов по краям либо {@code null}
+   * Извлекает строковое значение claim и обрезает пробелы.
+   *
+   * @param tokenParamsMap JWT-claim → значение.
+   * @param key            ключ claim.
+   * @return строковое значение без пробелов по краям либо {@code null}.
    */
   public static String getStringValue(Map<String, Object> tokenParamsMap, String key) {
     return Option.of(tokenParamsMap)
@@ -77,8 +86,10 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @param request HTTP-запрос
-   * @return идентификатор запроса либо {@link AuditJwtConstants#NO_REQUEST_ID}
+   * Извлекает ID запроса из HTTP-заголовка.
+   *
+   * @param request HTTP-запрос.
+   * @return идентификатор запроса либо {@link AuditJwtConstants#NO_REQUEST_ID}.
    */
   public static String getRequestId(ServerHttpRequest request) {
     return Option.of(request.getHeaders().getFirst(AuditHttpConstants.REQUEST_ID))
@@ -86,12 +97,14 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @param tokenParamsMap JWT-claim → значение
-   * @return форматированная строка с sid либо {@link AuditJwtConstants#NO_CLAIM_SID}
+   * Извлекает идентификатор узла пользователя (sid) из JWT-claims.
+   *
+   * @param tokenParamsMap JWT-claim → значение.
+   * @return форматированная строка с sid либо {@link AuditJwtConstants#NO_CLAIM_SID}.
    */
   public static String getUserNode(Map<String, Object> tokenParamsMap) {
     return Option.of(getStringValue(tokenParamsMap, AuditJwtConstants.SID_CLAIM_NAME))
-        .filter(sid -> !sid.isEmpty())
+        .filter(ObjectUtils::isNotEmpty)
         .map(sid -> String.format(AuditJwtConstants.JWT_CLAIM_SID_PREFIX, sid))
         .getOrElse(() -> {
           log.debug(AuditLogMessages.NO_JWT_SID_CLAIM);
@@ -100,13 +113,15 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @param tokenParamsMap JWT-claim → значение
-   * @param request        HTTP-запрос
-   * @return Session ID либо {@link AuditJwtConstants#NO_SESSION}
+   * Извлекает Session ID из JWT {@code jti}, cookie или заголовков.
+   *
+   * @param tokenParamsMap JWT-claim → значение.
+   * @param request        HTTP-запрос.
+   * @return Session ID либо {@link AuditJwtConstants#NO_SESSION}.
    */
   public static String getSession(Map<String, Object> tokenParamsMap, ServerHttpRequest request) {
     return Option.of(getStringValue(tokenParamsMap, AuditJwtConstants.JTI))
-        .filter(jti -> !jti.isEmpty())
+        .filter(ObjectUtils::isNotEmpty)
         .map(jti -> String.format(AuditJwtConstants.JWT_CLAIM_JTI_PREFIX, jti))
         .orElse(() -> Option.of(request.getHeaders().getFirst(AuditHttpConstants.X_CORRELATION_ID))
             .map(id -> AuditHttpConstants.CORRELATION_WITH_UNDERSCORE + id))
@@ -115,8 +130,10 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @param request HTTP-запрос
-   * @return значение cookie {@code JSESSIONID} либо {@code null}
+   * Извлекает Session ID из cookie {@code JSESSIONID}.
+   *
+   * @param request HTTP-запрос.
+   * @return значение cookie {@code JSESSIONID} либо {@code null}.
    */
   private static String getCookieSessionId(ServerHttpRequest request) {
     final HttpCookie cookie = request.getCookies().getFirst(AuditHttpConstants.JSESSIONID);
@@ -126,8 +143,10 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @param request HTTP-запрос
-   * @return заголовок сессии либо значение по умолчанию
+   * Возвращает заголовок сессии или значение по умолчанию.
+   *
+   * @param request HTTP-запрос.
+   * @return заголовок сессии либо значение по умолчанию.
    */
   private static String headerSessionOrDefault(ServerHttpRequest request) {
     return Objects.requireNonNullElse(
@@ -137,7 +156,9 @@ public final class AuditEventHeaderUtils {
   }
 
   /**
-   * @return идентификатор узла из окружения либо локальной машины
+   * Инициализирует идентификатор узла из окружения или локальной машины.
+   *
+   * @return идентификатор узла из окружения либо локальной машины.
    */
   private static String initializeNodeId() {
     final String pod = System.getenv(AuditJwtConstants.HOSTNAME);

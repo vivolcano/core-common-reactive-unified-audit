@@ -18,8 +18,10 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   private final AuditBodyCapture capture;
 
   /**
-   * @param delegate     исходный ответ
-   * @param maxBodyBytes лимит буферизации для аудита
+   * Оборачивает исходный ответ декоратором захвата тела.
+   *
+   * @param delegate     исходный ответ.
+   * @param maxBodyBytes лимит буферизации для аудита.
    */
   public CapturingServerHttpResponse(ServerHttpResponse delegate, int maxBodyBytes) {
     super(delegate);
@@ -27,14 +29,19 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   }
 
   /**
-   * @return тело для аудита либо пустой массив при превышении лимита
+   * Возвращает тело, скопированное для аудита.
+   *
+   * @return тело для аудита либо пустой массив при превышении лимита.
    */
   public byte[] capturedBody() {
     return capture.capturedBody();
   }
 
   /**
-   * {@inheritDoc}
+   * Пишет тело делегату, параллельно копируя байты в кэш аудита.
+   *
+   * @param body поток буферов тела ответа.
+   * @return сигнал завершения записи в делегат.
    */
   @Override
   public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
@@ -42,7 +49,10 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   }
 
   /**
-   * {@inheritDoc}
+   * Сохраняет границы flush и копирует каждый фрагмент для аудита.
+   *
+   * @param body поток порций тела ответа.
+   * @return сигнал завершения записи в делегат.
    */
   @Override
   public Mono<Void> writeAndFlushWith(Publisher<? extends Publisher<? extends DataBuffer>> body) {
@@ -50,8 +60,10 @@ public final class CapturingServerHttpResponse extends ServerHttpResponseDecorat
   }
 
   /**
-   * @param body исходный поток буферов
-   * @return тот же поток с копированием в кэш аудита
+   * Копирует каждый буфер в кэш аудита и пропускает тот же поток дальше.
+   *
+   * @param body исходный поток буферов.
+   * @return тот же поток с копированием в кэш аудита.
    */
   private Flux<? extends DataBuffer> tee(Publisher<? extends DataBuffer> body) {
     return Flux.from(body).doOnNext(capture::append);

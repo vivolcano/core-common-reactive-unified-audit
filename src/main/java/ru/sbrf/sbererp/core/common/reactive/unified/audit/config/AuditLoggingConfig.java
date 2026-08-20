@@ -29,7 +29,9 @@ public final class AuditLoggingConfig {
   private final AuditReactiveProperties reactiveProperties;
 
   /**
-   * @return {@link AuditWebFilter} с порядком {@link #FILTER_ORDER}
+   * Регистрирует основной WebFlux-фильтр аудита.
+   *
+   * @return {@link AuditWebFilter} с порядком {@link #FILTER_ORDER}.
    */
   @Bean
   @Order(FILTER_ORDER)

@@ -26,13 +26,13 @@ import ru.sbrf.ufs.platform.audit.model.CriticalityEnum;
 /**
  * YAML-событие {@code audit.model.*.events.*}.
  *
- * @param name                     имя события
- * @param description              описание для метамодели
- * @param mode                     критичность SBT
- * @param success                  {@code true} — HTTP 200–308, иначе {@code false}
- * @param paramsMap                ключ биндера → список {@link ParamHolder}
- * @param conditionsMap            те же ключи → список {@link ConditionHolder}; может быть {@code null}
- * @param compiledConditionChecker кэш AND-проверки условий
+ * @param name                     имя события.
+ * @param description              описание для метамодели.
+ * @param mode                     критичность SBT.
+ * @param success                  {@code true} — HTTP 200–308, иначе {@code false}.
+ * @param paramsMap                ключ биндера → список {@link ParamHolder}.
+ * @param conditionsMap            те же ключи → список {@link ConditionHolder}; может быть {@code null}.
+ * @param compiledConditionChecker кэш AND-проверки условий.
  * @see #postCompile()
  * @see AuditParameterBinder
  */
@@ -48,12 +48,14 @@ public record EventHolder(
 ) {
 
   /**
-   * @param name        имя события
-   * @param description описание события
-   * @param mode        режим критичности
-   * @param success     признак успешности
-   * @param params      ключ биндера → список {@link ParamHolder}
-   * @param conditions  ключ биндера → список {@link ConditionHolder}; может быть {@code null}
+   * Конструктор привязки YAML: ключи {@code params} и {@code conditions}.
+   *
+   * @param name        имя события.
+   * @param description описание события.
+   * @param mode        режим критичности.
+   * @param success     признак успешности.
+   * @param params      ключ биндера → список {@link ParamHolder}.
+   * @param conditions  ключ биндера → список {@link ConditionHolder}; может быть {@code null}.
    */
   @ConstructorBinding
   public EventHolder(
@@ -66,6 +68,9 @@ public record EventHolder(
     this(name, description, mode, success, params, conditions, new AtomicReference<>());
   }
 
+  /**
+   * Нормализует кэш проверки условий, если канонический конструктор вызван напрямую.
+   */
   public EventHolder {
     validate(name, description, mode, success, paramsMap);
     compiledConditionChecker = Objects.requireNonNullElseGet(compiledConditionChecker, AtomicReference::new);
@@ -79,23 +84,29 @@ public record EventHolder(
   }
 
   /**
-   * @return {@code true}, если условия заданы
+   * Проверяет, заданы ли условия для события.
+   *
+   * @return {@code true}, если условия заданы.
    */
   public boolean hasConditions() {
     return ObjectUtils.isNotEmpty(conditionsMap);
   }
 
   /**
-   * @return {@code true}, если параметры заданы
+   * Проверяет, заданы ли параметры для события.
+   *
+   * @return {@code true}, если параметры заданы.
    */
   public boolean hasParams() {
     return ObjectUtils.isNotEmpty(paramsMap);
   }
 
   /**
-   * @param exchange текущий обмен
-   * @return {@code true}, если все условия выполнены
-   * @throws UnifiedAuditException если {@code compiledConditionChecker} не инициализирован
+   * Проверяет, соответствуют ли текущий обмен заданным условиям события.
+   *
+   * @param exchange текущий обмен.
+   * @return {@code true}, если все условия выполнены.
+   * @throws UnifiedAuditException если {@code compiledConditionChecker} не инициализирован.
    */
   public boolean matchesConditions(ServerWebExchange exchange) {
     return Option.of(compiledConditionChecker.get())
@@ -105,7 +116,9 @@ public record EventHolder(
   }
 
   /**
-   * @return плоский список всех {@link ParamHolder}
+   * Возвращает плоский список всех параметров события.
+   *
+   * @return плоский список всех {@link ParamHolder}.
    */
   public List<ParamHolder> params() {
     return hasParams()
@@ -114,7 +127,9 @@ public record EventHolder(
   }
 
   /**
-   * @return функция проверки всех условий события
+   * Компилирует условия в одну функцию проверки обмена.
+   *
+   * @return функция проверки всех условий события.
    */
   private Function<ServerWebExchange, Boolean> compileConditions() {
     if (!hasConditions()) {
@@ -127,18 +142,33 @@ public record EventHolder(
     return exchange -> matchAllCheckers(allCheckers, exchange);
   }
 
+  /**
+   * Компилирует одно YAML-условие в функцию проверки обмена.
+   *
+   * @param condition условие события.
+   * @return функция, возвращающая {@code true}, если условие выполнено.
+   */
   private Function<ServerWebExchange, Boolean> compileSingleCondition(ConditionHolder condition) {
     return exchange -> evaluateCondition(condition, exchange);
   }
 
+  /**
+   * Извлекает значение условия и сравнивает его оператором.
+   *
+   * @param condition условие события.
+   * @param exchange  текущий обмен.
+   * @return результат оператора.
+   */
   private boolean evaluateCondition(ConditionHolder condition, ServerWebExchange exchange) {
     return condition.operator().evaluate(extractValue(condition, exchange), condition.values());
   }
 
   /**
-   * @param condition условие
-   * @param exchange  текущий обмен
-   * @return извлечённое значение либо {@code null}
+   * Извлекает значение для условия с помощью привязанного экстрактора.
+   *
+   * @param condition условие события.
+   * @param exchange  текущий обмен.
+   * @return извлечённое значение либо {@code null}.
    */
   private String extractValue(ConditionHolder condition, ServerWebExchange exchange) {
     final Extractor extractor = Option.of(condition.getExtractor())
@@ -152,12 +182,25 @@ public record EventHolder(
         .getOrNull();
   }
 
+  /**
+   * Проверяет, что все скомпилированные условия выполнены.
+   *
+   * @param checkers список проверок.
+   * @param exchange текущий обмен.
+   * @return {@code true}, если все проверки вернули {@code true}.
+   */
   private static boolean matchAllCheckers(
       List<Function<ServerWebExchange, Boolean>> checkers,
       ServerWebExchange exchange) {
     return checkers.stream().allMatch(checker -> checker.apply(exchange));
   }
 
+  /**
+   * Функция «условия отсутствуют»: обмен всегда подходит.
+   *
+   * @param exchange текущий обмен.
+   * @return {@code true}.
+   */
   private static boolean alwaysMatch(ServerWebExchange exchange) {
     return true;
   }

@@ -17,8 +17,10 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditClient
 public final class AuditClientConfig {
 
   /**
-   * @param properties конфигурационные свойства клиента
-   * @return {@link AuditConfig}
+   * Создаёт конфигурацию аудита из {@link AuditClientProperties#config()}.
+   *
+   * @param properties конфигурационные свойства клиента.
+   * @return {@link AuditConfig}.
    */
   @Bean
   public AuditConfig auditConfig(AuditClientProperties properties) {
@@ -26,8 +28,10 @@ public final class AuditClientConfig {
   }
 
   /**
-   * @param auditConfig конфигурация аудита
-   * @return {@link AuditService}
+   * Создаёт блокирующий {@link AuditService} по заданной конфигурации.
+   *
+   * @param auditConfig конфигурация аудита.
+   * @return {@link AuditService}.
    */
   @Bean
   public AuditService auditService(AuditConfig auditConfig) {

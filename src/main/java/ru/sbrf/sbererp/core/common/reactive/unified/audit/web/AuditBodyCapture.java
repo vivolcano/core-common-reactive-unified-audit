@@ -20,8 +20,10 @@ final class AuditBodyCapture {
   private boolean exceeded;
 
   /**
-   * @param maxBodyBytes    лимит кэша аудита в байтах
-   * @param overflowMessage WARN при сбросе кэша
+   * Создаёт буфер копии HTTP-тела для аудита.
+   *
+   * @param maxBodyBytes    лимит кэша аудита в байтах.
+   * @param overflowMessage WARN при сбросе кэша.
    */
   AuditBodyCapture(int maxBodyBytes, String overflowMessage) {
     this.maxBodyBytes = maxBodyBytes;
@@ -32,7 +34,7 @@ final class AuditBodyCapture {
    * Копирует читаемые байты и возвращает {@link DataBuffer#readPosition()}, чтобы HTTP видел тот же фрагмент.
    * Если {@code written + chunk} больше лимита, кэш очищается, последующие фрагменты игнорируются.
    *
-   * @param dataBuffer текущий фрагмент тела
+   * @param dataBuffer текущий фрагмент тела.
    */
   synchronized void append(DataBuffer dataBuffer) {
     if (exceeded || dataBuffer.readableByteCount() <= AuditNumericConstants.ZERO) {
@@ -55,7 +57,9 @@ final class AuditBodyCapture {
   }
 
   /**
-   * @return копия накопленных байт либо пустой массив, если кэш пуст или сброшен
+   * Возвращает копию накопленных байт.
+   *
+   * @return копия накопленных байт либо пустой массив, если кэш пуст или сброшен.
    */
   synchronized byte[] capturedBody() {
     return exceeded || written == AuditNumericConstants.ZERO

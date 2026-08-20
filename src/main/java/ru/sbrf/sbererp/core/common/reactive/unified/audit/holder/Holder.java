@@ -11,27 +11,37 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
 public interface Holder {
 
   /**
-   * @return имя из YAML
+   * Возвращает имя параметра или условия из YAML.
+   *
+   * @return имя из YAML.
    */
   String getName();
 
   /**
-   * @return экстрактор после биндинга; {@code null} до {@link AuditParameterBinder}
+   * Возвращает привязанный экстрактор.
+   *
+   * @return экстрактор после биндинга; {@code null} до {@link AuditParameterBinder}.
    */
   Extractor getExtractor();
 
   /**
-   * @param extractor стратегия извлечения
+   * Сохраняет стратегию извлечения значения.
+   *
+   * @param extractor стратегия извлечения.
    */
   void setExtractor(Extractor extractor);
 
   /**
-   * @return ключ извлечения; {@code null}, пока биндер не задал значение
+   * Возвращает ключ извлечения (заголовок, query, JSON-поле).
+   *
+   * @return ключ извлечения; {@code null}, пока биндер не задал значение.
    */
   String getKey();
 
   /**
-   * @param key имя источника; может совпадать с {@link #getName()}
+   * Задаёт ключ извлечения.
+   *
+   * @param key имя источника; может совпадать с {@link #getName()}.
    */
   void setKey(String key);
 }

@@ -12,11 +12,11 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
 /**
  * YAML-параметр события. {@link #extractor} и {@link #key} мутируются биндером.
  *
- * @param name        имя в метамодели
- * @param description описание в метамодели
- * @param masks       JSON-пути для вырезания полей; может быть {@code null}
- * @param key         ключ извлечения
- * @param extractor   стратегия чтения {@link ServerWebExchange}
+ * @param name        имя в метамодели.
+ * @param description описание в метамодели.
+ * @param masks       JSON-пути для вырезания полей; может быть {@code null}.
+ * @param key         ключ извлечения.
+ * @param extractor   стратегия чтения {@link ServerWebExchange}.
  */
 public record ParamHolder(
     String name,
@@ -27,10 +27,12 @@ public record ParamHolder(
 ) implements Holder {
 
   /**
-   * @param name        имя параметра
-   * @param description описание параметра
-   * @param key         ключ извлечения, если отличается от имени
-   * @param masks       список масок
+   * Конструктор привязки YAML.
+   *
+   * @param name        имя параметра.
+   * @param description описание параметра.
+   * @param key         ключ извлечения, если отличается от имени.
+   * @param masks       список масок.
    */
   @ConstructorBinding
   public ParamHolder(String name, String description, String key, List<String> masks) {

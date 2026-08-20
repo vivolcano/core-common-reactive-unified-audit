@@ -16,8 +16,10 @@ import reactor.core.publisher.Mono;
 public final class ReactiveSecurityContextUtils {
 
   /**
-   * @param exchange текущий обмен
-   * @return JWT-claim → значение либо пустая мапа
+   * Читает JWT-claims, ранее положенные в атрибуты обмена.
+   *
+   * @param exchange текущий обмен.
+   * @return JWT-claim → значение либо пустая мапа.
    */
   @SuppressWarnings("unchecked")
   public static Map<String, Object> getTokenParamsMap(ServerWebExchange exchange) {
@@ -26,7 +28,9 @@ public final class ReactiveSecurityContextUtils {
   }
 
   /**
-   * @return JWT-claim → значение из {@link ReactiveSecurityContextHolder} либо пустая мапа
+   * Асинхронно извлекает JWT-claims из {@link ReactiveSecurityContextHolder}.
+   *
+   * @return JWT-claim → значение из {@link ReactiveSecurityContextHolder} либо пустая мапа.
    */
   public static Mono<Map<String, Object>> loadTokenParamsMap() {
     return ReactiveSecurityContextHolder.getContext()
@@ -35,8 +39,10 @@ public final class ReactiveSecurityContextUtils {
   }
 
   /**
-   * @param context контекст безопасности
-   * @return JWT-claim → значение либо пустая мапа
+   * Достаёт {@code details} аутентификации, если это JWT-claim → значение.
+   *
+   * @param context контекст безопасности.
+   * @return JWT-claim → значение либо пустая мапа.
    */
   @SuppressWarnings("unchecked")
   private static Map<String, Object> extractDetails(SecurityContext context) {
@@ -50,9 +56,9 @@ public final class ReactiveSecurityContextUtils {
   /**
    * Сохраняет JWT-claims в атрибуты обмена для синхронных экстракторов.
    *
-   * @param exchange текущий обмен
-   * @param params   JWT-claim → значение
-   * @return тот же обмен
+   * @param exchange текущий обмен.
+   * @param params   JWT-claim → значение.
+   * @return тот же обмен.
    */
   public static ServerWebExchange storeTokenParams(
       ServerWebExchange exchange,

@@ -10,7 +10,7 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditConfigurati
 /**
  * YAML {@code audit.model}: привязка событий к FQCN контроллеров и именам методов.
  *
- * @param classEventsHolders список контроллеров; {@code null}/пусто → {@link List#of()}
+ * @param classEventsHolders список контроллеров; {@code null}/пусто → {@link List#of()}.
  */
 @ConfigurationProperties(prefix = AuditConfigurationFieldNames.AUDIT_MODEL_PREFIX)
 public record AuditEventsProperties(List<ClassEventsHolder> classEventsHolders) {
@@ -25,7 +25,7 @@ public record AuditEventsProperties(List<ClassEventsHolder> classEventsHolders) 
   }
 
   /**
-   * @return события всех контроллеров в порядке YAML
+   * @return события всех контроллеров в порядке YAML.
    */
   public List<EventHolder> metamodelEvents() {
     return classEventsHolders.stream()

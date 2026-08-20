@@ -23,7 +23,9 @@ public final class AuditSchedulerConfig {
   public static final String DESTROY_METHOD = "dispose";
 
   /**
-   * @return планировщик для блокирующего I/O аудита
+   * Создаёт именованный {@code boundedElastic}-пул с префиксом потоков {@code unified-audit}.
+   *
+   * @return планировщик для блокирующего I/O аудита.
    */
   @Bean(name = ELASTIC_SCHEDULER, destroyMethod = DESTROY_METHOD)
   public Scheduler unifiedAuditElasticScheduler() {

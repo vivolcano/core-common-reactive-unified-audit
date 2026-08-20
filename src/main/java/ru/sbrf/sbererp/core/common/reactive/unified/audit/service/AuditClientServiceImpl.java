@@ -27,9 +27,11 @@ public final class AuditClientServiceImpl implements AuditClientService {
   private final Scheduler auditScheduler;
 
   /**
-   * @param auditService   блокирующий клиент SBT
-   * @param eventConverter конвертер {@link EventAdapter} → {@link Event}
-   * @param auditScheduler {@code boundedElastic} для блокирующего I/O
+   * Создаёт отправителя события через блокирующий {@link AuditService}.
+   *
+   * @param auditService   блокирующий клиент SBT.
+   * @param eventConverter конвертер {@link EventAdapter} → {@link Event}.
+   * @param auditScheduler {@code boundedElastic} для блокирующего I/O.
    */
   public AuditClientServiceImpl(
       AuditService auditService,
@@ -41,7 +43,10 @@ public final class AuditClientServiceImpl implements AuditClientService {
   }
 
   /**
-   * {@inheritDoc}
+   * Конвертирует адаптер в модель SBT и регистрирует событие.
+   *
+   * @param eventAdapter собранное событие.
+   * @return {@link Mono#empty()} после попытки отправки.
    */
   @Override
   public Mono<Void> sendEvent(EventAdapter eventAdapter) {
@@ -56,8 +61,8 @@ public final class AuditClientServiceImpl implements AuditClientService {
   /**
    * Синхронная отправка. Вызывать только с {@code auditScheduler}.
    *
-   * @param eventAdapter внутреннее событие
-   * @return идентификатор, возвращённый {@link AuditService#audit(Event)}
+   * @param eventAdapter внутреннее событие.
+   * @return идентификатор, возвращённый {@link AuditService#audit(Event)}.
    */
   private String sendBlocking(EventAdapter eventAdapter) {
     final Event event = eventConverter.convert(eventAdapter);
@@ -73,6 +78,13 @@ public final class AuditClientServiceImpl implements AuditClientService {
     return eventId;
   }
 
+  /**
+   * Сбой аудита не должен менять HTTP-ответ.
+   *
+   * @param throwable ошибка отправки.
+   * @param <T>       тип сигнала.
+   * @return пустой {@link Mono}.
+   */
   private <T> Mono<T> swallowError(Throwable throwable) {
     return Mono.empty();
   }
