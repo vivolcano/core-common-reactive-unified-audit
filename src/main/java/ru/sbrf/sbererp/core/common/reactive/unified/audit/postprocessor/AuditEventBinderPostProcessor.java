@@ -5,9 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditParameterBinder;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.binder.AuditParameterBinder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditEventsProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditEventsProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ClassEventsHolder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditLogMessages;
 

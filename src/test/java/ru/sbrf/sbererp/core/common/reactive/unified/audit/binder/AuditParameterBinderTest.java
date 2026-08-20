@@ -1,4 +1,4 @@
-package ru.sbrf.sbererp.core.common.reactive.unified.audit;
+package ru.sbrf.sbererp.core.common.reactive.unified.audit.binder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -7,6 +7,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.RequestBody;
 import reactor.core.publisher.Mono;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.RequestExtractor;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ClassEventsHolder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.EventHolder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ParamHolder;

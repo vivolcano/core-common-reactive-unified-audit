@@ -10,7 +10,7 @@ import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import org.springframework.web.util.pattern.PathPattern;
 import reactor.core.publisher.Mono;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditReactiveProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditReactiveProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.resolver.AuditEventResolver;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditExchangeAttributeNames;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditHttpConstants;

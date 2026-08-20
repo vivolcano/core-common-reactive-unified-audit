@@ -16,7 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import ru.sbrf.sbererp.audit.it.controller.AuditItemsController;
 import ru.sbrf.sbererp.audit.it.support.RecordingAuditService;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditEventsProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditEventsProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.EventHolder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditJwtConstants;
 

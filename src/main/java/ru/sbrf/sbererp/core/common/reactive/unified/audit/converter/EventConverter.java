@@ -6,7 +6,7 @@ import com.sbt.audit.core.model.v2.event.EventParams;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.adapter.EventAdapter;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditClientProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditClientProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ParamHolder;
 
 import java.util.List;

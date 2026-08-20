@@ -1,4 +1,4 @@
-package ru.sbrf.sbererp.core.common.reactive.unified.audit;
+package ru.sbrf.sbererp.core.common.reactive.unified.audit.properties;
 
 import java.util.Map;
 import java.util.Objects;

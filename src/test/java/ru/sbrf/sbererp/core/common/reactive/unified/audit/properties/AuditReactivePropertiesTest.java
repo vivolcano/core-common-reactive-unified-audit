@@ -1,4 +1,4 @@
-package ru.sbrf.sbererp.core.common.reactive.unified.audit;
+package ru.sbrf.sbererp.core.common.reactive.unified.audit.properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

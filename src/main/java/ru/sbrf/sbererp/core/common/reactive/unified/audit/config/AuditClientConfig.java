@@ -6,7 +6,7 @@ import com.sbt.audit.core.service.AuditService;
 import com.sbt.audit.core.service.AuditServiceFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditClientProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditClientProperties;
 
 /**
  * Бины блокирующего клиента SBT: {@link AuditConfig} и {@link AuditService}.

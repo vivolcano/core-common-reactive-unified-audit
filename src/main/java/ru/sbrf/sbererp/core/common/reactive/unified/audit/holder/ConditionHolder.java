@@ -7,7 +7,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.Name;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.ConditionOperator;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.enums.ConditionOperator;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditConfigurationFieldNames;
 
 /**

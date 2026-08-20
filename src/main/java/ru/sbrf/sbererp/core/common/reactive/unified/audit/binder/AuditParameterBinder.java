@@ -1,10 +1,12 @@
-package ru.sbrf.sbererp.core.common.reactive.unified.audit;
+package ru.sbrf.sbererp.core.common.reactive.unified.audit.binder;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestBody;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.exception.UnifiedAuditException;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.RequestExtractor;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.ResponseExtractor;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.*;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditExceptionMessages;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditLogMessages;

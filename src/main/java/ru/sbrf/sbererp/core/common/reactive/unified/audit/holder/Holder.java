@@ -1,6 +1,6 @@
 package ru.sbrf.sbererp.core.common.reactive.unified.audit.holder;
 
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditParameterBinder;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.binder.AuditParameterBinder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
 import org.springframework.web.server.ServerWebExchange;
 

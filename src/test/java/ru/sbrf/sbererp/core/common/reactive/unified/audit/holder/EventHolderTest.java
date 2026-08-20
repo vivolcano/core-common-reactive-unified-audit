@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.exception.UnifiedAuditException;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.RequestExtractor;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.ConditionOperator;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.RequestExtractor;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.enums.ConditionOperator;
 import ru.sbrf.ufs.platform.audit.model.CriticalityEnum;
 
 final class EventHolderTest {

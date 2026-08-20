@@ -1,4 +1,4 @@
-package ru.sbrf.sbererp.core.common.reactive.unified.audit;
+package ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor;
 
 import java.util.List;
 import java.util.Objects;
@@ -7,7 +7,6 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.web.server.ServerWebExchange;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditJsonExtractionUtils;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.Holder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditTextConstants;

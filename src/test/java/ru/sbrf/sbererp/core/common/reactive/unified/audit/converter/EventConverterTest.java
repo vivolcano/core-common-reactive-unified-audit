@@ -6,7 +6,7 @@ import com.sbt.audit.core.model.v2.event.Event;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.adapter.EventAdapter;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditClientProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditClientProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.MetaModelTitleHolder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ParamHolder;
 

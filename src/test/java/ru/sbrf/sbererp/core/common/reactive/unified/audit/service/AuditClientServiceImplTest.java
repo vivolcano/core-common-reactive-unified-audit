@@ -12,7 +12,7 @@ import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.adapter.EventAdapter;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.converter.EventConverter;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditClientProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditClientProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.MetaModelTitleHolder;
 
 final class AuditClientServiceImplTest {

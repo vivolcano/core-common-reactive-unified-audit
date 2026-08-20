@@ -1,4 +1,4 @@
-package ru.sbrf.sbererp.core.common.reactive.unified.audit;
+package ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Parameter;
@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.server.ServerWebExchange;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditJsonExtractionUtils;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.Holder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditEventHeaderUtils;

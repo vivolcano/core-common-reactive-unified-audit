@@ -4,6 +4,9 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ComponentScan;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditClientProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditEventsProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditReactiveProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditConfigurationFieldNames;
 
 /**

@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.filter.AuditWebFilter;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.AuditReactiveProperties;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditReactiveProperties;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.resolver.AuditEventResolver;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditNumericConstants;
 
