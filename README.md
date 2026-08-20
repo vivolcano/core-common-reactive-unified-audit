@@ -477,7 +477,7 @@ GET тело запроса не кэширует. POST/PUT/PATCH без `@Reque
 
 ## Логирование
 
-Логгер: `ru.sbrf.sbererp.core.common.unified.audit`.
+Логгер: `ru.sbrf.sbererp.core.common.reactive.unified.audit`.
 
 | Уровень | Что пишется |
 | --- | --- |
@@ -491,7 +491,7 @@ GET тело запроса не кэширует. POST/PUT/PATCH без `@Reque
 ```yaml
 logging:
   level:
-    ru.sbrf.sbererp.core.common.unified.audit: DEBUG
+    ru.sbrf.sbererp.core.common.reactive.unified.audit: DEBUG
 ```
 
 Не держите DEBUG на проме: в лог попадут тела запросов и метамодель.
