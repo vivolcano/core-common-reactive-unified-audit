@@ -10,10 +10,9 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditReacti
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditConfigurationFieldNames;
 
 /**
- * Spring Boot auto-config модуля: только {@link ConditionalOnWebApplication.Type#REACTIVE}.
- * <p>
- * Регистрируется через {@code META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports}.
- * Сканирует пакет {@code ru.sbrf.sbererp.core.common.reactive.unified.audit} и биндит
+ * Spring Boot auto-config модуля для {@link ConditionalOnWebApplication.Type#REACTIVE}.
+ *
+ * <p>Сканирует {@code ru.sbrf.sbererp.core.common.reactive.unified.audit} и биндит
  * {@link AuditClientProperties}, {@link AuditEventsProperties}, {@link AuditReactiveProperties}.
  */
 @AutoConfiguration(afterName = AuditConfigurationFieldNames.WEBFLUX_AUTO_CONFIGURATION)

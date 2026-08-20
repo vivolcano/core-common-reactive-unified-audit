@@ -7,10 +7,8 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditExchangeAtt
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditNumericConstants;
 
 /**
- * Копирует тело HTTP для аудита, не забирая байты у исходного {@link DataBuffer}.
- * <p>
- * Если суммарный размер превышает лимит, накопленное отбрасывается: HTTP-поток не прерывается,
- * экстракторы получают пустое тело.
+ * Копия HTTP-тела для аудита без потребления исходного {@link DataBuffer}.
+ * При превышении лимита кэш сбрасывается целиком, HTTP-поток не прерывается.
  */
 @Slf4j
 final class AuditBodyCapture {
@@ -22,10 +20,8 @@ final class AuditBodyCapture {
   private boolean exceeded;
 
   /**
-   * Копирует фрагмент тела в лимите аудита, не забирая байты у исходного буфера.
-   *
-   * @param maxBodyBytes    максимум байт для аудита.
-   * @param overflowMessage текст WARN при превышении лимита.
+   * @param maxBodyBytes    лимит кэша аудита в байтах
+   * @param overflowMessage WARN при сбросе кэша
    */
   AuditBodyCapture(int maxBodyBytes, String overflowMessage) {
     this.maxBodyBytes = maxBodyBytes;
@@ -33,15 +29,16 @@ final class AuditBodyCapture {
   }
 
   /**
-   * Копирует читаемые байты буфера, не сдвигая его {@code readPosition} для downstream.
+   * Копирует читаемые байты и возвращает {@link DataBuffer#readPosition()}, чтобы HTTP видел тот же фрагмент.
+   * Если {@code written + chunk} больше лимита, кэш очищается, последующие фрагменты игнорируются.
    *
-   * @param dataBuffer очередной фрагмент тела.
+   * @param dataBuffer текущий фрагмент тела
    */
   synchronized void append(DataBuffer dataBuffer) {
     if (exceeded || dataBuffer.readableByteCount() <= AuditNumericConstants.ZERO) {
       return;
     }
-    int readable = dataBuffer.readableByteCount();
+    final int readable = dataBuffer.readableByteCount();
     if (written + readable > maxBodyBytes) {
       exceeded = true;
       written = AuditNumericConstants.ZERO;
@@ -49,8 +46,8 @@ final class AuditBodyCapture {
       log.warn(overflowMessage);
       return;
     }
-    byte[] chunk = new byte[readable];
-    int readPosition = dataBuffer.readPosition();
+    final byte[] chunk = new byte[readable];
+    final int readPosition = dataBuffer.readPosition();
     dataBuffer.read(chunk);
     dataBuffer.readPosition(readPosition);
     buffer.write(chunk, AuditNumericConstants.ZERO, readable);
@@ -58,14 +55,11 @@ final class AuditBodyCapture {
   }
 
   /**
-   * Возвращает накопленное тело аудита.
-   *
-   * @return копия накопленного тела или пустой массив, если лимит превышен либо тело пусто.
+   * @return копия накопленных байт либо пустой массив, если кэш пуст или сброшен
    */
   synchronized byte[] capturedBody() {
-    if (exceeded || written == AuditNumericConstants.ZERO) {
-      return AuditExchangeAttributeNames.EMPTY_BODY;
-    }
-    return buffer.toByteArray();
+    return exceeded || written == AuditNumericConstants.ZERO
+        ? AuditExchangeAttributeNames.EMPTY_BODY
+        : buffer.toByteArray();
   }
 }

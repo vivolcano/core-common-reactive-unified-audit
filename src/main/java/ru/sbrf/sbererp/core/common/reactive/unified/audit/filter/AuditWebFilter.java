@@ -1,5 +1,6 @@
 package ru.sbrf.sbererp.core.common.reactive.unified.audit.filter;
 
+import io.vavr.control.Option;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -19,12 +20,9 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.web.CapturingServerHtt
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.web.CapturingServerHttpResponse;
 
 /**
- * Копирует тела запроса/ответа для аудита и после {@link WebFilterChain} вызывает
- * {@link AuditEventResolver}.
- * <p>
- * HTTP-потоки не прерываются лимитом аудита. GET не копирует request body.
- * Пути из {@code audit.reactive.exclude-path-patterns} пропускаются целиком.
- * Если контроллер не читал тело, оно дочитывается после цепочки для YAML {@code request-body}.
+ * {@link WebFilter}, который копирует тела запроса/ответа и после цепочки вызывает {@link AuditEventResolver}.
+ *
+ * <p>GET не копирует request body. Пути {@code audit.reactive.exclude-path-patterns} пропускаются.
  */
 @Slf4j
 public final class AuditWebFilter implements WebFilter {
@@ -34,10 +32,8 @@ public final class AuditWebFilter implements WebFilter {
   private final List<PathPattern> excludePathPatterns;
 
   /**
-   * Создаёт WebFlux-фильтр аудита: захват тел и вызов резолвера после цепочки.
-   *
-   * @param auditEventResolver резолвер события {@link AuditEventResolver} после цепочки.
-   * @param reactiveProperties лимит тел и exclude-пути {@link AuditReactiveProperties}.
+   * @param auditEventResolver резолвер события после цепочки
+   * @param reactiveProperties лимит тел и exclude-пути
    */
   public AuditWebFilter(
       AuditEventResolver auditEventResolver,
@@ -50,9 +46,9 @@ public final class AuditWebFilter implements WebFilter {
   /**
    * Оборачивает обмен декораторами захвата тел, пропускает цепочку и отправляет событие аудита.
    *
-   * @param exchange текущий обмен.
-   * @param chain    оставшаяся цепочка фильтров.
-   * @return сигнал завершения.
+   * @param exchange текущий обмен
+   * @param chain    оставшаяся цепочка фильтров
+   * @return сигнал завершения
    */
   @Override
   @NonNull
@@ -65,18 +61,16 @@ public final class AuditWebFilter implements WebFilter {
       );
       return chain.filter(exchange);
     }
-    CapturingServerHttpRequest capturingRequest = capturingRequest(exchange);
-    ServerWebExchange withRequest = Objects.isNull(capturingRequest)
+    final CapturingServerHttpRequest capturingRequest = capturingRequest(exchange);
+    final ServerWebExchange withRequest = Objects.isNull(capturingRequest)
         ? exchange
         : exchange.mutate().request(capturingRequest).build();
     return filterWithResponseCapture(withRequest, chain, capturingRequest);
   }
 
   /**
-   * Проверяет, что путь запроса совпал с одним из exclude-шаблонов.
-   *
-   * @param exchange текущий {@link ServerWebExchange}.
-   * @return {@code true}, если путь совпал с {@code audit.reactive.exclude-path-patterns}.
+   * @param exchange текущий обмен
+   * @return {@code true}, если путь совпал с {@code audit.reactive.exclude-path-patterns}
    */
   private boolean isExcluded(ServerWebExchange exchange) {
     return AuditReactiveProperties.matchesAny(
@@ -86,10 +80,8 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * Для GET не подписывается на тело запроса.
-   *
-   * @param exchange текущий обмен.
-   * @return декоратор захвата или {@code null} для GET.
+   * @param exchange текущий обмен
+   * @return декоратор захвата либо {@code null} для GET
    */
   private CapturingServerHttpRequest capturingRequest(ServerWebExchange exchange) {
     if (isGetRequest(exchange)) {
@@ -104,32 +96,30 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * Определяет, что запрос не несёт тело, которое нужно копировать.
-   *
-   * @param exchange текущий {@link ServerWebExchange}.
-   * @return {@code true}, если метод GET.
+   * @param exchange текущий обмен
+   * @return {@code true}, если метод GET
    */
   private boolean isGetRequest(ServerWebExchange exchange) {
-    HttpMethod method = exchange.getRequest().getMethod();
+    final HttpMethod method = exchange.getRequest().getMethod();
     return Objects.equals(HttpMethod.GET, method)
         || AuditHttpConstants.GET_METHOD.equalsIgnoreCase(method.name());
   }
 
   /**
-   * Оборачивает ответ декоратором захвата тела, выполняет цепочку и аудирует результат.
+   * Оборачивает ответ декоратором захвата, выполняет цепочку и аудирует результат.
    *
-   * @param exchange         текущий обмен.
-   * @param chain            цепочка фильтров.
-   * @param capturingRequest декоратор запроса или {@code null} для GET.
-   * @return сигнал завершения.
+   * @param exchange         текущий обмен
+   * @param chain            цепочка фильтров
+   * @param capturingRequest декоратор запроса либо {@code null} для GET
+   * @return сигнал завершения
    */
   private Mono<Void> filterWithResponseCapture(
       ServerWebExchange exchange,
       WebFilterChain chain,
       CapturingServerHttpRequest capturingRequest) {
-    CapturingServerHttpResponse capturingResponse =
+    final CapturingServerHttpResponse capturingResponse =
         new CapturingServerHttpResponse(exchange.getResponse(), reactiveProperties.maxBodyBytes());
-    ServerWebExchange mutated = exchange.mutate().response(capturingResponse).build();
+    final ServerWebExchange mutated = exchange.mutate().response(capturingResponse).build();
     return chain.filter(mutated)
         .then(Mono.defer(() -> afterChain(mutated, capturingRequest, capturingResponse)))
         .onErrorResume(error -> auditThenRethrow(mutated, capturingRequest, capturingResponse, error));
@@ -138,10 +128,10 @@ public final class AuditWebFilter implements WebFilter {
   /**
    * Дочитывает непрочитанное тело запроса, сохраняет кэш и отправляет событие.
    *
-   * @param exchange          обмен с декораторами.
-   * @param capturingRequest  декоратор запроса или {@code null}.
-   * @param capturingResponse декоратор ответа.
-   * @return сигнал завершения аудита.
+   * @param exchange          обмен с декораторами
+   * @param capturingRequest  декоратор запроса либо {@code null}
+   * @param capturingResponse декоратор ответа
+   * @return сигнал завершения аудита
    */
   private Mono<Void> afterChain(
       ServerWebExchange exchange,
@@ -153,33 +143,27 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * Дочитывает тело запроса, если контроллер его не потреблял.
-   *
-   * @param capturingRequest декоратор запроса {@link CapturingServerHttpRequest} или {@code null}.
-   * @return сигнал дочитывания тела или пустой {@link Mono}.
+   * @param capturingRequest декоратор запроса либо {@code null}
+   * @return сигнал дочитывания тела либо пустой {@link Mono}
    */
   private Mono<Void> captureUnreadRequestBody(CapturingServerHttpRequest capturingRequest) {
-    if (Objects.isNull(capturingRequest)) {
-      return Mono.empty();
-    }
-    return capturingRequest.captureUnreadBody();
+    return Objects.isNull(capturingRequest) ? Mono.empty() : capturingRequest.captureUnreadBody();
   }
 
   /**
    * Кладёт кэш тел в атрибуты обмена.
    *
-   * @param exchange          текущий обмен.
-   * @param capturingRequest  декоратор запроса или {@code null}.
-   * @param capturingResponse декоратор ответа.
+   * @param exchange          текущий обмен
+   * @param capturingRequest  декоратор запроса либо {@code null}
+   * @param capturingResponse декоратор ответа
    */
   private void storeBodies(
       ServerWebExchange exchange,
       CapturingServerHttpRequest capturingRequest,
       CapturingServerHttpResponse capturingResponse) {
     storeRequestBody(exchange, capturingRequest);
-    byte[] responseBody = capturingResponse.capturedBody();
-    exchange.getAttributes()
-        .put(AuditExchangeAttributeNames.CACHED_RESPONSE_BODY, responseBody);
+    final byte[] responseBody = capturingResponse.capturedBody();
+    exchange.getAttributes().put(AuditExchangeAttributeNames.CACHED_RESPONSE_BODY, responseBody);
     log.debug(
         AuditLogMessages.CAPTURED_RESPONSE_BODY,
         responseBody.length,
@@ -189,35 +173,32 @@ public final class AuditWebFilter implements WebFilter {
   }
 
   /**
-   * Кладёт кэш тела запроса в атрибуты, если декоратор использовался.
-   *
-   * @param exchange         текущий обмен.
-   * @param capturingRequest декоратор запроса или {@code null}.
+   * @param exchange         текущий обмен
+   * @param capturingRequest декоратор запроса либо {@code null}
    */
   private void storeRequestBody(
       ServerWebExchange exchange,
       CapturingServerHttpRequest capturingRequest) {
-    if (Objects.isNull(capturingRequest)) {
-      return;
-    }
-    byte[] requestBody = capturingRequest.capturedBody();
-    exchange.getAttributes().put(AuditExchangeAttributeNames.CACHED_REQUEST_BODY, requestBody);
-    log.debug(
-        AuditLogMessages.CACHED_REQUEST_BODY,
-        requestBody.length,
-        exchange.getRequest().getMethod(),
-        exchange.getRequest().getPath()
-    );
+    Option.of(capturingRequest).forEach(request -> {
+      final byte[] requestBody = request.capturedBody();
+      exchange.getAttributes().put(AuditExchangeAttributeNames.CACHED_REQUEST_BODY, requestBody);
+      log.debug(
+          AuditLogMessages.CACHED_REQUEST_BODY,
+          requestBody.length,
+          exchange.getRequest().getMethod(),
+          exchange.getRequest().getPath()
+      );
+    });
   }
 
   /**
    * Выполняет аудит при ошибке цепочки и пробрасывает исходное исключение.
    *
-   * @param exchange          обмен.
-   * @param capturingRequest  декоратор запроса или {@code null}.
-   * @param capturingResponse декоратор ответа.
-   * @param error             ошибка цепочки.
-   * @return сигнал ошибки после аудита.
+   * @param exchange          обмен
+   * @param capturingRequest  декоратор запроса либо {@code null}
+   * @param capturingResponse декоратор ответа
+   * @param error             ошибка цепочки
+   * @return сигнал ошибки после аудита
    */
   private Mono<Void> auditThenRethrow(
       ServerWebExchange exchange,

@@ -1,5 +1,17 @@
 package ru.sbrf.sbererp.core.common.reactive.unified.audit.binder;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -7,159 +19,98 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.exception.UnifiedAudit
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.RequestExtractor;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.ResponseExtractor;
-import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.*;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ClassEventsHolder;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ConditionHolder;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.EventHolder;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.Holder;
+import ru.sbrf.sbererp.core.common.reactive.unified.audit.holder.ParamHolder;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditExceptionMessages;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditLogMessages;
 import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditTextConstants;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.*;
-
 /**
  * Сопоставляет ключ YAML ({@code request}, {@code response-header}, …) с {@link Extractor}.
- * <p>
- * {@link #configureAuditParameters} вызывается из
- * {@link ru.sbrf.sbererp.core.common.reactive.unified.audit.postprocessor.AuditEventBinderPostProcessor}
- * для каждого контроллера из {@code audit.model}. После привязки вызывает {@link EventHolder#postCompile()}.
+ * Вызывается из {@link ru.sbrf.sbererp.core.common.reactive.unified.audit.postprocessor.AuditEventBinderPostProcessor},
+ * после привязки — {@link EventHolder#postCompile()}.
  */
 @Slf4j
 public enum AuditParameterBinder {
 
   /**
-   * Экстрактор для параметров, связанных с HTTP-запросом. Привязывает параметры к аннотированным
-   * входным параметрам метода контроллера.
-   * <p>
-   * Поддерживает параметры, переданные через тело запроса (с аннотацией {@link RequestBody}), а
-   * также именованные параметры. Если параметр не найден в сигнатуре метода, пытается привязать его
-   * к телу запроса.
+   * Параметры HTTP-запроса; не найденные в сигнатуре метода привязываются к {@link RequestBody}.
    */
   REQUEST {
     @Override
     void setExtractors(List<? extends Holder> holders, Map<String, Parameter> parametersMap) {
-      boolean hasRequestBody = hasRequestBodyParameter(parametersMap);
-      List<Holder> paramHoldersNotMethodParam = new ArrayList<>();
-      for (Holder holder : holders) {
-        String parameterFieldName = Objects.requireNonNullElse(holder.getKey(), holder.getName());
-        if (parametersMap.containsKey(parameterFieldName)) {
-          Parameter parameter = parametersMap.get(parameterFieldName);
-          parametersMap.remove(parameterFieldName);
+      final boolean hasRequestBody = hasRequestBodyParameter(parametersMap);
+      final List<Holder> unmatched = new ArrayList<>();
+      holders.forEach(holder -> {
+        final String fieldName = Objects.requireNonNullElse(holder.getKey(), holder.getName());
+        final Parameter parameter = parametersMap.remove(fieldName);
+        if (parameter != null) {
           RequestExtractor.setExtractor(parameter, holder);
         } else {
-          paramHoldersNotMethodParam.add(holder);
+          unmatched.add(holder);
         }
-      }
+      });
       if (hasRequestBody) {
-        for (Holder holderNotMethodParam : paramHoldersNotMethodParam) {
-          RequestExtractor.setExtractor(holderNotMethodParam);
-        }
+        unmatched.forEach(RequestExtractor::setExtractor);
       }
     }
   },
 
   /**
-   * Экстрактор для HTTP-заголовков запроса. Назначает экстрактор
-   * {@link RequestExtractor#REQUEST_HEADER} всем указанным параметрам.
-   * <p>
-   * Используется для извлечения значений из заголовков входящего HTTP-запроса.
+   * Заголовки HTTP-запроса через {@link RequestExtractor#REQUEST_HEADER}.
    */
   REQUEST_HEADER {
     @Override
     void setExtractors(List<? extends Holder> holders) {
-      for (Holder holder : holders) {
-        holder.setExtractor(RequestExtractor.REQUEST_HEADER);
-        if (Objects.isNull(holder.getKey())) {
-          holder.setKey(holder.getName());
-        }
-      }
+      assignExtractor(holders, RequestExtractor.REQUEST_HEADER);
     }
   },
 
   /**
-   * Экстрактор для JWT claims. Назначает экстрактор {@link RequestExtractor#CLAIM} всем указанным
-   * параметрам.
-   * <p>
-   * Используется для извлечения значений из JWT токена.
+   * JWT-claims через {@link RequestExtractor#CLAIM}.
    */
   CLAIMS {
     @Override
     void setExtractors(List<? extends Holder> holders) {
-      for (Holder holder : holders) {
-        holder.setExtractor(RequestExtractor.CLAIM);
-        if (Objects.isNull(holder.getKey())) {
-          holder.setKey(holder.getName());
-        }
-      }
+      assignExtractor(holders, RequestExtractor.CLAIM);
     }
   },
 
   /**
-   * Экстрактор для кода HTTP-ответа. Назначает экстрактор {@link ResponseExtractor#RESPONSE_CODE}
-   * всем указанным параметрам.
-   * <p>
-   * Позволяет включить HTTP-статус ответа (например, 200, 404) в событие аудита.
+   * HTTP-статус через {@link ResponseExtractor#RESPONSE_CODE}.
    */
   RESPONSE_CODE {
     @Override
     void setExtractors(List<? extends Holder> holders) {
-      for (Holder holder : holders) {
-        holder.setExtractor(ResponseExtractor.RESPONSE_CODE);
-      }
+      holders.forEach(holder -> holder.setExtractor(ResponseExtractor.RESPONSE_CODE));
     }
   },
 
   /**
-   * Экстрактор для HTTP-заголовков ответа. Назначает экстрактор
-   * {@link ResponseExtractor#RESPONSE_HEADER} всем указанным параметрам.
-   * <p>
-   * Используется для извлечения значений из заголовков исходящего HTTP-ответа.
+   * Заголовки HTTP-ответа через {@link ResponseExtractor#RESPONSE_HEADER}.
    */
   RESPONSE_HEADER {
     @Override
     void setExtractors(List<? extends Holder> holders) {
-      for (Holder holder : holders) {
-        holder.setExtractor(ResponseExtractor.RESPONSE_HEADER);
-        if (Objects.isNull(holder.getKey())) {
-          holder.setKey(holder.getName());
-        }
-      }
+      assignExtractor(holders, ResponseExtractor.RESPONSE_HEADER);
     }
   },
 
   /**
-   * Экстрактор для тела HTTP-ответа. Назначает экстрактор {@link ResponseExtractor#RESPONSE_BODY}
-   * всем указанным параметрам.
-   * <p>
-   * Позволяет включить содержимое тела ответа (например, JSON) в событие аудита.
+   * Тело HTTP-ответа через {@link ResponseExtractor#RESPONSE_BODY}.
    */
   RESPONSE_BODY {
     @Override
     void setExtractors(List<? extends Holder> holders) {
-      for (Holder holder : holders) {
-        holder.setExtractor(ResponseExtractor.RESPONSE_BODY);
-      }
+      holders.forEach(holder -> holder.setExtractor(ResponseExtractor.RESPONSE_BODY));
     }
   },
 
   /**
-   * Экстрактор для переменных URI-пути. Назначает экстрактор
-   * {@link RequestExtractor#PATH_VARIABLE} всем указанным параметрам.
-   * <p>
-   * Используется для извлечения значений из URI-шаблона (например, /users/{id}/orders/{orderId}).
-   * В отличие от {@link #REQUEST}, не зависит от сигнатуры метода — может использоваться даже
-   * если переменная пути не аннотирована как {@link org.springframework.web.bind.annotation.PathVariable}.
-   * <p>
-   * Значение извлекается из атрибута запроса
-   * {@link org.springframework.web.reactive.HandlerMapping#URI_TEMPLATE_VARIABLES_ATTRIBUTE}.
-   * <p>
-   * Пример конфигурации в YAML:
-   * <pre>
-   * conditions:
-   *   path-variable:
-   *     - field: id
-   *       operator: EQUALS
-   *       values: ["123"]
-   * </pre>
+   * Переменные URI через {@link RequestExtractor#PATH_VARIABLE}, без зависимости от сигнатуры метода.
    *
    * @see RequestExtractor#PATH_VARIABLE
    * @see ConditionHolder
@@ -167,181 +118,133 @@ public enum AuditParameterBinder {
   PATH_VARIABLE {
     @Override
     void setExtractors(List<? extends Holder> holders) {
-      for (Holder holder : holders) {
-        holder.setExtractor(RequestExtractor.PATH_VARIABLE);
-        if (Objects.isNull(holder.getKey())) {
-          holder.setKey(holder.getName());
-        }
-      }
+      assignExtractor(holders, RequestExtractor.PATH_VARIABLE);
     }
   };
 
   /**
-   * Метод по умолчанию, вызываемый при попытке установить экстракторы с неподдерживаемым типом.
-   * Переопределяется в конкретных элементах перечисления.
-   *
-   * @param holders       список {@link Holder}, для которых требуется установить экстракторы.
-   * @param parametersMap мапа имя параметра метода → {@link Parameter}.
-   * @throws UnifiedAuditException если операция не поддерживается.
+   * @param holders       держатели YAML
+   * @param parametersMap имя параметра метода → {@link Parameter}
+   * @throws UnifiedAuditException если биндер не принимает параметры метода
    */
   void setExtractors(List<? extends Holder> holders, Map<String, Parameter> parametersMap) {
     throw new UnifiedAuditException(AuditExceptionMessages.EXTRACTION_NOT_SUPPORTED);
   }
 
   /**
-   * Метод по умолчанию, вызываемый при попытке установить экстракторы с неподдерживаемым типом.
-   * Переопределяется в конкретных элементах перечисления.
-   *
-   * @param holders список {@link Holder}, для которых требуется установить экстракторы.
-   * @throws UnifiedAuditException если операция не поддерживается.
+   * @param holders держатели YAML
+   * @throws UnifiedAuditException если биндеру нужны параметры метода
    */
   void setExtractors(List<? extends Holder> holders) {
     throw new UnifiedAuditException(AuditExceptionMessages.EXTRACTION_NOT_SUPPORTED);
   }
 
   /**
-   * Настраивает параметры аудита для указанного класса контроллера.
-   * <p>
-   * Рекурсивно обходит всю иерархию классов (интерфейсы, суперклассы, абстрактные классы) и
-   * связывает параметры аудита с соответствующими экстракторами.
+   * Обходит интерфейсы и суперклассы {@code clazz} и привязывает экстракторы к совпавшим методам YAML.
    *
-   * @param classEventsHolder контейнер, хранящий информацию о событиях класса.
-   * @param clazz             класс контроллера, для которого настраиваются параметры аудита.
+   * @param classEventsHolder события контроллера
+   * @param clazz             тип бина контроллера
    */
   public static void configureAuditParameters(ClassEventsHolder classEventsHolder, Class<?> clazz) {
-    Class<?>[] interfaces = ClassUtils.getAllInterfacesForClass(clazz);
-    for (Class<?> classInterface : interfaces) {
-      processMethodParameters(classEventsHolder, classInterface);
-    }
-
-    Class<?> currentClass = clazz;
-    while (Objects.nonNull(currentClass) && currentClass != Object.class) {
-      processMethodParameters(classEventsHolder, currentClass);
-      currentClass = currentClass.getSuperclass();
-    }
+    Arrays.stream(ClassUtils.getAllInterfacesForClass(clazz))
+        .forEach(iface -> processMethodParameters(classEventsHolder, iface));
+    Stream.<Class<?>>iterate(clazz, Objects::nonNull, type -> type.getSuperclass())
+        .takeWhile(current -> current != Object.class)
+        .forEach(current -> processMethodParameters(classEventsHolder, current));
     log.debug(AuditLogMessages.CONFIGURED_EXTRACTORS, clazz.getName());
   }
 
   /**
-   * Обрабатывает методы класса: находит YAML-события и привязывает {@link Extractor}.
+   * Привязывает экстракторы к YAML-событиям, имена которых совпали с методами {@code clazz}.
    *
-   * @param classEventsHolder контейнер событий контроллера.
-   * @param clazz             класс или интерфейс, чьи методы сопоставляются с YAML.
+   * @param classEventsHolder события контроллера
+   * @param clazz             сканируемый класс или интерфейс
    */
   private static void processMethodParameters(ClassEventsHolder classEventsHolder, Class<?> clazz) {
-    for (Method method : clazz.getDeclaredMethods()) {
-      if (!classEventsHolder.eventsMap().containsKey(method.getName())) {
-        continue;
-      }
-      List<EventHolder> eventHolders = classEventsHolder.eventsMap()
-          .get(method.getName())
-          .methodEventHolders();
-
-      for (EventHolder eventHolder : eventHolders) {
-        Map<String, Parameter> parametersMap = getParametersMap(method);
-        bindParametersToExtractors(eventHolder, parametersMap);
-
-        if (eventHolder.hasConditions()) {
-          postCompile(eventHolder, parametersMap);
-        }
-      }
-    }
+    Arrays.stream(clazz.getDeclaredMethods())
+        .filter(method -> classEventsHolder.eventsMap().containsKey(method.getName()))
+        .forEach(method -> {
+          final List<EventHolder> eventHolders = classEventsHolder.eventsMap()
+              .get(method.getName())
+              .methodEventHolders();
+          eventHolders.forEach(eventHolder -> {
+            final Map<String, Parameter> parametersMap = getParametersMap(method);
+            bindParametersToExtractors(eventHolder, parametersMap);
+            if (eventHolder.hasConditions()) {
+              postCompile(eventHolder, parametersMap);
+            }
+          });
+        });
   }
 
   /**
-   * Выбирает подходящий экстрактор для каждого параметра события и устанавливает его.
-   * <p>
-   * Определяет тип параметра (запрос/ответ) и делегирует установку экстрактора соответствующему
-   * элементу перечисления.
-   *
-   * @param event         описание события с параметрами {@link EventHolder}.
-   * @param parametersMap мапа имя параметра метода → {@link Parameter}.
+   * @param event         событие, чьи {@code params} получают экстракторы
+   * @param parametersMap имя параметра метода → {@link Parameter}
    */
   private static void bindParametersToExtractors(EventHolder event, Map<String, Parameter> parametersMap) {
     if (!event.hasParams()) {
       return;
     }
-
-    Map<String, List<ParamHolder>> paramsMap = event.paramsMap();
-
-    for (AuditParameterBinder binder : values()) {
-      if (paramsMap.containsKey(binder.getParamsMapKey())) {
-        List<ParamHolder> paramHolders = paramsMap.get(binder.getParamsMapKey());
-        if (binder.equals(REQUEST)) {
-          binder.setExtractors(paramHolders, parametersMap);
-        } else {
-          binder.setExtractors(paramHolders);
-        }
-      }
-    }
+    bindHolders(event.paramsMap(), parametersMap);
   }
 
   /**
-   * Обрабатывает условия, связанные с событием аудита.
-   * <p>
-   * Устанавливает экстракторы для условий (например, "если код ответа == 200") и выполняет
-   * финальную компиляцию события.
+   * Привязывает экстракторы условий и компилирует AND-проверку.
    *
-   * @param event         описание события с условиями {@link EventHolder}.
-   * @param parametersMap мапа имя параметра метода → {@link Parameter}.
+   * @param event         событие, чьи {@code conditions} получают экстракторы
+   * @param parametersMap имя параметра метода → {@link Parameter}
    */
   private static void postCompile(EventHolder event, Map<String, Parameter> parametersMap) {
-    Map<String, List<ConditionHolder>> conditionsMap = event.conditionsMap();
-    for (AuditParameterBinder binder : values()) {
-      if (conditionsMap.containsKey(binder.getParamsMapKey())) {
-        List<ConditionHolder> conditionHolders = conditionsMap.get(binder.getParamsMapKey());
-        if (binder.equals(REQUEST)) {
-          binder.setExtractors(conditionHolders, parametersMap);
-        } else {
-          binder.setExtractors(conditionHolders);
-        }
-      }
-    }
+    bindHolders(event.conditionsMap(), parametersMap);
     event.postCompile();
   }
 
+  private static void bindHolders(
+      Map<String, ? extends List<? extends Holder>> holdersByKey,
+      Map<String, Parameter> parametersMap) {
+    Arrays.stream(values())
+        .filter(binder -> holdersByKey.containsKey(binder.getParamsMapKey()))
+        .forEach(binder -> {
+          final List<? extends Holder> holders = holdersByKey.get(binder.getParamsMapKey());
+          if (binder == REQUEST) {
+            binder.setExtractors(holders, parametersMap);
+          } else {
+            binder.setExtractors(holders);
+          }
+        });
+  }
+
+  private static void assignExtractor(List<? extends Holder> holders, Extractor extractor) {
+    holders.forEach(holder -> {
+      holder.setExtractor(extractor);
+      holder.setKey(Objects.requireNonNullElse(holder.getKey(), holder.getName()));
+    });
+  }
+
   /**
-   * Проверяет, есть ли среди параметров метода аннотация {@link RequestBody}.
-   *
-   * @param parametersMap мапа имя параметра метода → {@link Parameter}.
-   * @return {@code true}, если среди них есть {@link RequestBody}.
+   * @param parametersMap имя параметра метода → {@link Parameter}
+   * @return {@code true}, если есть параметр с {@link RequestBody}
    */
   private static boolean hasRequestBodyParameter(Map<String, Parameter> parametersMap) {
-    for (Parameter parameter : parametersMap.values()) {
-      if (parameter.isAnnotationPresent(RequestBody.class)) {
-        return true;
-      }
-    }
-    return false;
+    return parametersMap.values().stream().anyMatch(parameter -> parameter.isAnnotationPresent(RequestBody.class));
   }
 
   /**
-   * Собирает мапу имя параметра метода → {@link Parameter} через отражение.
-   * <p>
-   * Используется для сопоставления имён из YAML с реальными параметрами метода.
-   *
-   * @param method отражённый метод контроллера.
-   * @return мапа имя параметра → {@link Parameter}.
+   * @param method отражённый метод контроллера
+   * @return имя параметра → {@link Parameter}
    */
   private static Map<String, Parameter> getParametersMap(Method method) {
-    Parameter[] parameters = method.getParameters();
-    Map<String, Parameter> parametersMap = new HashMap<>();
-    for (Parameter parameter : parameters) {
-      parametersMap.put(parameter.getName(), parameter);
-    }
-    return parametersMap;
+    return Arrays.stream(method.getParameters())
+        .collect(Collectors.toMap(Parameter::getName, Function.identity(), (left, right) -> left, HashMap::new));
   }
 
   /**
-   * Возвращает ключ для использования в хэш-мап параметров событий. Формируется из имени элемента
-   * перечисления.
-   * <p>
-   * Например, {@code REQUEST_BODY} преобразуется в {@code request-body}.
+   * Ключ YAML этого биндера, например {@code REQUEST_BODY} → {@code request-body}.
    *
-   * @return строковый ключ YAML ({@code request-body} для {@code REQUEST_BODY}).
+   * @return имя enum в нижнем регистре через дефис
    */
   public String getParamsMapKey() {
-    return this.name()
+    return name()
         .toLowerCase(Locale.ROOT)
         .replace(AuditTextConstants.CHAR_UNDERSCORE, AuditTextConstants.CHAR_DASH);
   }

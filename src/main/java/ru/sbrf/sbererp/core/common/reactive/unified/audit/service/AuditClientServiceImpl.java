@@ -15,9 +15,8 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditPrettyJsonU
 
 /**
  * Отправка события в АС Единый Аудит через блокирующий {@link AuditService}.
- * <p>
- * Вызов {@code audit} выполняется на бине {@link AuditSchedulerConfig#ELASTIC_SCHEDULER},
- * чтобы не блокировать event loop Netty. Исключения клиента логируются и глотаются.
+ *
+ * <p>Вызов выполняется на {@link AuditSchedulerConfig#ELASTIC_SCHEDULER}. Исключения логируются и глотаются.
  */
 @Slf4j
 @Service
@@ -28,11 +27,9 @@ public final class AuditClientServiceImpl implements AuditClientService {
   private final Scheduler auditScheduler;
 
   /**
-   * Создаёт отправителя события через блокирующий {@link AuditService}.
-   *
-   * @param auditService   блокирующий клиент SBT {@link AuditService}.
-   * @param eventConverter конвертер {@link EventAdapter} → {@link Event}.
-   * @param auditScheduler {@code boundedElastic} с префиксом потоков {@code unified-audit}.
+   * @param auditService   блокирующий клиент SBT
+   * @param eventConverter конвертер {@link EventAdapter} → {@link Event}
+   * @param auditScheduler {@code boundedElastic} для блокирующего I/O
    */
   public AuditClientServiceImpl(
       AuditService auditService,
@@ -59,11 +56,11 @@ public final class AuditClientServiceImpl implements AuditClientService {
   /**
    * Синхронная отправка. Вызывать только с {@code auditScheduler}.
    *
-   * @param eventAdapter внутреннее событие {@link EventAdapter}.
-   * @return идентификатор, возвращённый {@link AuditService#audit(Event)}.
+   * @param eventAdapter внутреннее событие
+   * @return идентификатор, возвращённый {@link AuditService#audit(Event)}
    */
   private String sendBlocking(EventAdapter eventAdapter) {
-    Event event = eventConverter.convert(eventAdapter);
+    final Event event = eventConverter.convert(eventAdapter);
     log.info(AuditLogMessages.SENDING_AUDIT_EVENT, event.getName());
     if (log.isDebugEnabled()) {
       log.debug(
@@ -71,18 +68,11 @@ public final class AuditClientServiceImpl implements AuditClientService {
           AuditPrettyJsonUtils.getFormatString(event, AuditLogMessages.FAILED_TO_SERIALIZE_EVENT)
       );
     }
-    String eventId = auditService.audit(event);
+    final String eventId = auditService.audit(event);
     log.info(AuditLogMessages.SENT_AUDIT_EVENT, event.getName(), eventId);
     return eventId;
   }
 
-  /**
-   * Сбой аудита не должен менять HTTP-ответ.
-   *
-   * @param throwable ошибка отправки.
-   * @param <T>       тип сигнала.
-   * @return {@link Mono#empty()}.
-   */
   private <T> Mono<T> swallowError(Throwable throwable) {
     return Mono.empty();
   }

@@ -10,17 +10,14 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditConfigurati
 /**
  * YAML {@code audit.client}: свойства билдера SBT-клиента и заголовок метамодели.
  *
- * @param config    мапа ключ свойства → значение из {@code audit.client.config}; {@code null} → пустая мапа.
- * @param metaModel обязательный {@link MetaModelTitleHolder} из {@code audit.client.meta-model}.
+ * @param config    ключ свойства → значение из {@code audit.client.config}
+ * @param metaModel обязательный {@link MetaModelTitleHolder}
  */
 @ConfigurationProperties(prefix = AuditConfigurationFieldNames.AUDIT_CLIENT_PREFIX)
 public record AuditClientProperties(Map<String, String> config, MetaModelTitleHolder metaModel) {
 
   /**
-   * Нормализует мапу свойств клиента и проверяет наличие {@link MetaModelTitleHolder}.
-   *
-   * @param config    мапа ключ свойства → значение; пустая мапа, если значение не задано.
-   * @param metaModel заголовок метамодели.
+   * Нормализует свойства клиента и проверяет наличие {@link MetaModelTitleHolder}.
    */
   public AuditClientProperties {
     config = ObjectUtils.isEmpty(config) ? Map.of() : Map.copyOf(config);

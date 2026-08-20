@@ -2,6 +2,8 @@ package ru.sbrf.sbererp.core.common.reactive.unified.audit.holder;
 
 import static ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditPropertiesValidationUtils.validate;
 
+import io.vavr.control.Option;
+import io.vavr.control.Try;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,17 +25,16 @@ import ru.sbrf.ufs.platform.audit.model.CriticalityEnum;
 
 /**
  * YAML-событие {@code audit.model.*.events.*}.
- * <p>
- * {@code params}/{@code conditions} биндятся из YAML; {@code compiledConditionChecker}
- * заполняется {@link #postCompile()} после {@link AuditParameterBinder}.
  *
- * @param name                     имя события.
- * @param description              описание для метамодели.
- * @param mode                     критичность SBT.
- * @param success                  {@code true} — HTTP 200–308, {@code false} — иначе.
- * @param paramsMap                мапа ключ биндера → список {@link ParamHolder}.
- * @param conditionsMap            мапа тех же ключей → список {@link ConditionHolder}; может быть {@code null}.
- * @param compiledConditionChecker кэш AND-проверки условий.
+ * @param name                     имя события
+ * @param description              описание для метамодели
+ * @param mode                     критичность SBT
+ * @param success                  {@code true} — HTTP 200–308, иначе {@code false}
+ * @param paramsMap                ключ биндера → список {@link ParamHolder}
+ * @param conditionsMap            те же ключи → список {@link ConditionHolder}; может быть {@code null}
+ * @param compiledConditionChecker кэш AND-проверки условий
+ * @see #postCompile()
+ * @see AuditParameterBinder
  */
 @Slf4j
 public record EventHolder(
@@ -47,16 +48,12 @@ public record EventHolder(
 ) {
 
   /**
-   * Конструктор привязки Spring Boot: YAML-ключи {@code params} и {@code conditions}.
-   *
-   * @param name        имя события, не должно быть пустым.
-   * @param description описание события, не должно быть пустым.
-   * @param mode        режим критичности {@link CriticalityEnum}; не должен быть {@code null}.
-   * @param success     признак успешности; не должен быть {@code null}.
-   * @param params      мапа ключ биндера ({@code request}, {@code response-body}, …) → список {@link ParamHolder};
-   *                    не должна быть {@code null}, пустой или содержать пустые списки.
-   * @param conditions  мапа тех же ключей биндера → список {@link ConditionHolder}; может быть {@code null} или пустой.
-   * @throws UnifiedAuditException если хотя бы одно обязательное поле не прошло валидацию.
+   * @param name        имя события
+   * @param description описание события
+   * @param mode        режим критичности
+   * @param success     признак успешности
+   * @param params      ключ биндера → список {@link ParamHolder}
+   * @param conditions  ключ биндера → список {@link ConditionHolder}; может быть {@code null}
    */
   @ConstructorBinding
   public EventHolder(
@@ -69,59 +66,46 @@ public record EventHolder(
     this(name, description, mode, success, params, conditions, new AtomicReference<>());
   }
 
-  /**
-   * Нормализует кэш проверки условий, если канонический конструктор вызван напрямую.
-   */
   public EventHolder {
     validate(name, description, mode, success, paramsMap);
     compiledConditionChecker = Objects.requireNonNullElseGet(compiledConditionChecker, AtomicReference::new);
   }
 
   /**
-   * Публичный метод прекомпиляции условий. Вызывается постпроцессором после настройки
-   * экстракторов.
+   * Компилирует AND-проверку условий после привязки экстракторов.
    */
   public void postCompile() {
     compiledConditionChecker.compareAndSet(null, compileConditions());
   }
 
   /**
-   * Проверяет, заданы ли условия для события.
-   *
-   * @return {@code true}, если условия заданы и не пусты.
+   * @return {@code true}, если условия заданы
    */
   public boolean hasConditions() {
     return ObjectUtils.isNotEmpty(conditionsMap);
   }
 
   /**
-   * Проверяет, заданы ли параметры для события.
-   *
-   * @return {@code true}, если параметры заданы и не пусты.
+   * @return {@code true}, если параметры заданы
    */
   public boolean hasParams() {
     return ObjectUtils.isNotEmpty(paramsMap);
   }
 
   /**
-   * Проверяет, соответствуют ли текущий обмен заданным условиям события.
-   *
-   * @param exchange текущий обмен.
-   * @return {@code true}, если все условия выполнены.
-   * @throws UnifiedAuditException если {@code compiledConditionChecker} не инициализирован.
+   * @param exchange текущий обмен
+   * @return {@code true}, если все условия выполнены
+   * @throws UnifiedAuditException если {@code compiledConditionChecker} не инициализирован
    */
   public boolean matchesConditions(ServerWebExchange exchange) {
-    Function<ServerWebExchange, Boolean> checker = compiledConditionChecker.get();
-    if (Objects.isNull(checker)) {
-      throw new UnifiedAuditException(AuditExceptionMessages.COMPILED_CONDITION_CHECKER_IS_NULL, name);
-    }
-    return checker.apply(exchange);
+    return Option.of(compiledConditionChecker.get())
+        .map(checker -> checker.apply(exchange))
+        .getOrElseThrow(() -> new UnifiedAuditException(
+            AuditExceptionMessages.COMPILED_CONDITION_CHECKER_IS_NULL, name));
   }
 
   /**
-   * Возвращает плоский список всех параметров события из всех категорий.
-   *
-   * @return неизменяемый список всех {@link ParamHolder}.
+   * @return плоский список всех {@link ParamHolder}
    */
   public List<ParamHolder> params() {
     return hasParams()
@@ -130,86 +114,50 @@ public record EventHolder(
   }
 
   /**
-   * Компилирует условия в одну функцию проверки обмена.
-   *
-   * @return функция, проверяющая все условия события.
+   * @return функция проверки всех условий события
    */
   private Function<ServerWebExchange, Boolean> compileConditions() {
     if (!hasConditions()) {
       return EventHolder::alwaysMatch;
     }
-    List<Function<ServerWebExchange, Boolean>> allCheckers =
-        conditionsMap.values().stream()
-            .flatMap(List::stream)
-            .map(this::compileSingleCondition)
-            .toList();
+    final List<Function<ServerWebExchange, Boolean>> allCheckers = conditionsMap.values().stream()
+        .flatMap(List::stream)
+        .map(this::compileSingleCondition)
+        .toList();
     return exchange -> matchAllCheckers(allCheckers, exchange);
   }
 
-  /**
-   * Компилирует одно условие в функцию проверки.
-   *
-   * @param condition условие для компиляции.
-   * @return функция, возвращающая {@code true}, если условие выполнено.
-   */
   private Function<ServerWebExchange, Boolean> compileSingleCondition(ConditionHolder condition) {
     return exchange -> evaluateCondition(condition, exchange);
   }
 
-  /**
-   * Извлекает значение условия и сравнивает его оператором.
-   *
-   * @param condition условие.
-   * @param exchange  текущий обмен.
-   * @return результат оператора.
-   */
   private boolean evaluateCondition(ConditionHolder condition, ServerWebExchange exchange) {
-    String actualValue = extractValue(condition, exchange);
-    return condition.operator().evaluate(actualValue, condition.values());
+    return condition.operator().evaluate(extractValue(condition, exchange), condition.values());
   }
 
   /**
-   * Извлекает значение для условия с помощью соответствующего экстрактора.
-   *
-   * @param condition условие.
-   * @param exchange  текущий обмен.
-   * @return извлечённое значение или {@code null}.
+   * @param condition условие
+   * @param exchange  текущий обмен
+   * @return извлечённое значение либо {@code null}
    */
   private String extractValue(ConditionHolder condition, ServerWebExchange exchange) {
-    Extractor extractor = condition.getExtractor();
-    if (Objects.isNull(extractor)) {
-      throw new UnifiedAuditException(AuditExceptionMessages.EXTRACTOR_IS_MISSING, condition.getName(), name);
-    }
-    try {
-      if (extractor instanceof RequestExtractor) {
-        return extractor.extractRequest(exchange, condition);
-      }
-      return extractor.extractResponse(exchange, condition);
-    } catch (Exception exception) {
-      log.debug(AuditLogMessages.FAILED_TO_EXTRACT_CONDITION, condition.getName(), name, exception);
-      return null;
-    }
+    final Extractor extractor = Option.of(condition.getExtractor())
+        .getOrElseThrow(() -> new UnifiedAuditException(
+            AuditExceptionMessages.EXTRACTOR_IS_MISSING, condition.getName(), name));
+    return Try.of(() -> extractor instanceof RequestExtractor
+            ? extractor.extractRequest(exchange, condition)
+            : extractor.extractResponse(exchange, condition))
+        .onFailure(exception -> log.debug(
+            AuditLogMessages.FAILED_TO_EXTRACT_CONDITION, condition.getName(), name, exception))
+        .getOrNull();
   }
 
-  /**
-   * Проверяет, что все скомпилированные условия выполнены.
-   *
-   * @param checkers список проверок.
-   * @param exchange текущий обмен.
-   * @return {@code true}, если все проверки вернули {@code true}.
-   */
   private static boolean matchAllCheckers(
       List<Function<ServerWebExchange, Boolean>> checkers,
       ServerWebExchange exchange) {
     return checkers.stream().allMatch(checker -> checker.apply(exchange));
   }
 
-  /**
-   * Функция «условия отсутствуют» — обмен всегда подходит.
-   *
-   * @param exchange текущий обмен.
-   * @return {@code true}.
-   */
   private static boolean alwaysMatch(ServerWebExchange exchange) {
     return true;
   }

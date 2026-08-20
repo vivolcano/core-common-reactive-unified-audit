@@ -14,8 +14,8 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditNumericCons
 /**
  * YAML {@code audit.reactive}: лимит кэша тел и пути, которые фильтр аудита пропускает.
  *
- * @param maxBodySize         максимум тела для аудита; {@code null} → {@link #DEFAULT_MAX_BODY_SIZE}.
- * @param excludePathPatterns ant-style пути без аудита; {@code null} → {@link #DEFAULT_EXCLUDE_PATH_PATTERNS}.
+ * @param maxBodySize         максимум тела для аудита; {@code null} → {@link #DEFAULT_MAX_BODY_SIZE}
+ * @param excludePathPatterns ant-style пути без аудита; {@code null} → {@link #DEFAULT_EXCLUDE_PATH_PATTERNS}
  */
 @ConfigurationProperties(prefix = AuditConfigurationFieldNames.AUDIT_REACTIVE_PREFIX)
 public record AuditReactiveProperties(DataSize maxBodySize, List<String> excludePathPatterns) {
@@ -43,9 +43,6 @@ public record AuditReactiveProperties(DataSize maxBodySize, List<String> exclude
   /**
    * Подставляет значения по умолчанию: лимит 1 МБ, стандартный exclude.
    * Пустой список {@code exclude-path-patterns} отключает исключения.
-   *
-   * @param maxBodySize         лимит тела.
-   * @param excludePathPatterns шаблоны путей.
    */
   public AuditReactiveProperties {
     maxBodySize = Objects.isNull(maxBodySize) ? DEFAULT_MAX_BODY_SIZE : maxBodySize;
@@ -55,33 +52,27 @@ public record AuditReactiveProperties(DataSize maxBodySize, List<String> exclude
   }
 
   /**
-   * Возвращает лимит кэша тел аудита в байтах.
-   *
-   * @return положительное число байт для кэша аудита.
+   * @return положительное число байт для кэша аудита
    */
   public int maxBodyBytes() {
-    long bytes = maxBodySize.toBytes();
+    final long bytes = maxBodySize.toBytes();
     return bytes > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) bytes;
   }
 
   /**
-   * Собирает {@link PathPattern} один раз при создании фильтра.
-   *
-   * @return скомпилированные шаблоны exclude.
+   * @return скомпилированные шаблоны exclude
    */
   public List<PathPattern> compiledExcludePathPatterns() {
-    PathPatternParser parser = PathPatternParser.defaultInstance;
+    final PathPatternParser parser = PathPatternParser.defaultInstance;
     return excludePathPatterns.stream()
         .map(parser::parse)
         .toList();
   }
 
   /**
-   * Проверяет, совпадает ли путь с любым из шаблонов exclude.
-   *
-   * @param path     путь внутри приложения.
-   * @param patterns скомпилированные шаблоны {@link PathPattern}.
-   * @return {@code true}, если путь исключён из аудита.
+   * @param path     путь внутри приложения
+   * @param patterns скомпилированные шаблоны
+   * @return {@code true}, если путь исключён из аудита
    */
   public static boolean matchesAny(PathContainer path, List<PathPattern> patterns) {
     return patterns.stream().anyMatch(pattern -> pattern.matches(path));

@@ -13,9 +13,8 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.utils.AuditNumericCons
 
 /**
  * Конфигурация WebFlux-фильтра аудита.
- * <p>
- * Один {@link AuditWebFilter} копирует тела в лимите аудита и после цепочки отправляет событие.
- * Пути {@code audit.reactive.exclude-path-patterns} (actuator, swagger, …) не обрабатываются.
+ *
+ * <p>Пути {@code audit.reactive.exclude-path-patterns} не обрабатываются.
  */
 @RequiredArgsConstructor
 @Configuration(proxyBeanMethods = false)
@@ -30,9 +29,7 @@ public final class AuditLoggingConfig {
   private final AuditReactiveProperties reactiveProperties;
 
   /**
-   * Регистрирует основной WebFlux-фильтр аудита.
-   *
-   * @return {@link AuditWebFilter} с порядком {@link #FILTER_ORDER}.
+   * @return {@link AuditWebFilter} с порядком {@link #FILTER_ORDER}
    */
   @Bean
   @Order(FILTER_ORDER)

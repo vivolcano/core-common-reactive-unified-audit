@@ -17,10 +17,8 @@ import ru.sbrf.ufs.platform.audit.model.CriticalityEnum;
 public final class AuditPropertiesValidationUtils {
 
   /**
-   * Валидирует поля "name" и "description" как обязательные для заполнения.
-   *
-   * @param name        имя события или параметра.
-   * @param description описание события или параметра.
+   * @param name        имя события или параметра
+   * @param description описание события или параметра
    */
   public static void validate(String name, String description) {
     validateString(name, AuditConfigurationFieldNames.NAME);
@@ -28,14 +26,11 @@ public final class AuditPropertiesValidationUtils {
   }
 
   /**
-   * Валидирует параметры события: имя, описание, режим, флаг успешности и мапу ключ биндера → список
-   * {@link ParamHolder}.
-   *
-   * @param name        имя события.
-   * @param description описание события.
-   * @param mode        режим отправки события {@link CriticalityEnum}.
-   * @param success     признак успешности или неуспешности события.
-   * @param paramsMap   мапа ключ биндера → список {@link ParamHolder}.
+   * @param name        имя события
+   * @param description описание события
+   * @param mode        режим отправки
+   * @param success     признак успешности
+   * @param paramsMap   ключ биндера → список {@link ParamHolder}
    */
   public static void validate(String name, String description, CriticalityEnum mode,
       Boolean success,
@@ -51,12 +46,10 @@ public final class AuditPropertiesValidationUtils {
   }
 
   /**
-   * Валидирует метаданные заголовка модели аудита: версию, модуль, подсистему и источник системы.
-   *
-   * @param version      версия модели.
-   * @param module       имя модуля.
-   * @param subsystem    имя подсистемы.
-   * @param sourceSystem источник системы.
+   * @param version      версия модели
+   * @param module       имя модуля
+   * @param subsystem    имя подсистемы
+   * @param sourceSystem источник системы
    */
   public static void validate(String version, String module, String subsystem,
       String sourceSystem) {
@@ -67,10 +60,8 @@ public final class AuditPropertiesValidationUtils {
   }
 
   /**
-   * Валидирует класс контроллера и мапу имя метода → список событий.
-   *
-   * @param controllerClass класс контроллера.
-   * @param events          мапа имя метода → список событий YAML.
+   * @param controllerClass класс контроллера
+   * @param events          имя метода → список событий YAML
    */
   public static <T> void validate(Class<?> controllerClass, Map<String, List<T>> events) {
     validateObject(controllerClass, AuditConfigurationFieldNames.CONTROLLER_CLASS);
@@ -78,24 +69,20 @@ public final class AuditPropertiesValidationUtils {
   }
 
   /**
-   * Проверяет, что строковое значение не пустое и не состоит только из пробелов.
-   *
-   * @param fieldValue значение для проверки.
-   * @param fieldName  имя проверяемого поля.
-   * @throws UnifiedAuditException если значение пустое.
+   * @param fieldValue значение для проверки
+   * @param fieldName  имя проверяемого поля
+   * @throws UnifiedAuditException если значение пустое
    */
   private static void validateString(String fieldValue, String fieldName) {
-    if (Objects.isNull(fieldValue) || fieldValue.isEmpty() || fieldValue.isBlank()) {
+    if (Objects.isNull(fieldValue) || fieldValue.isBlank()) {
       throw new UnifiedAuditException(AuditExceptionMessages.FIELD_CAN_NOT_BE_EMPTY, fieldName);
     }
   }
 
   /**
-   * Проверяет, что объект не равен {@code null}.
-   *
-   * @param fieldValue значение для проверки.
-   * @param fieldName  имя проверяемого поля.
-   * @throws UnifiedAuditException если объект равен {@code null}.
+   * @param fieldValue значение для проверки
+   * @param fieldName  имя проверяемого поля
+   * @throws UnifiedAuditException если объект равен {@code null}
    */
   private static void validateObject(Object fieldValue, String fieldName) {
     if (Objects.isNull(fieldValue)) {
@@ -104,28 +91,24 @@ public final class AuditPropertiesValidationUtils {
   }
 
   /**
-   * Проверяет, что мапа не пустая и все её ключи и значения валидны.
-   *
-   * @param fieldValue мапа ключ YAML → список значений.
-   * @param fieldName  имя проверяемого поля.
-   * @throws UnifiedAuditException если мапа пустая или содержит пустые значения.
+   * @param fieldValue ключ YAML → список значений
+   * @param fieldName  имя проверяемого поля
+   * @throws UnifiedAuditException если мапа пустая или содержит пустые значения
    */
   private static <T> void validateMap(Map<String, List<T>> fieldValue, String fieldName) {
     if (ObjectUtils.isEmpty(fieldValue)) {
       throw new UnifiedAuditException(AuditExceptionMessages.EMPTY_FIELD_IN_SECTION, fieldName);
     }
-    for (Map.Entry<String, List<T>> entry : fieldValue.entrySet()) {
-      validateString(entry.getKey(), fieldName);
-      validateList(entry.getValue(), fieldName);
-    }
+    fieldValue.forEach((key, value) -> {
+      validateString(key, fieldName);
+      validateList(value, fieldName);
+    });
   }
 
   /**
-   * Проверяет, что список не пустой.
-   *
-   * @param fieldValue значение для проверки.
-   * @param fieldName  имя проверяемого поля.
-   * @throws UnifiedAuditException если список пустой.
+   * @param fieldValue значение для проверки
+   * @param fieldName  имя проверяемого поля
+   * @throws UnifiedAuditException если список пустой
    */
   private static void validateList(List<?> fieldValue, String fieldName) {
     if (ObjectUtils.isEmpty(fieldValue)) {

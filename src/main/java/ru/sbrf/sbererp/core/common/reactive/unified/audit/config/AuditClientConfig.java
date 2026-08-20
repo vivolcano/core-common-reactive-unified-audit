@@ -10,17 +10,15 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.properties.AuditClient
 
 /**
  * Бины блокирующего клиента SBT: {@link AuditConfig} и {@link AuditService}.
- * <p>
- * {@link AuditService} нельзя вызывать с event loop — только через {@code unifiedAuditElasticScheduler}.
+ *
+ * <p>{@link AuditService} нельзя вызывать с event loop — только через {@code unifiedAuditElasticScheduler}.
  */
 @Configuration(proxyBeanMethods = false)
 public final class AuditClientConfig {
 
   /**
-   * Создает и возвращает конфигурацию аудита на основе свойств клиента аудита.
-   *
-   * @param properties конфигурационные свойства клиента аудита.
-   * @return сконфигурированный объект {@link AuditConfig}.
+   * @param properties конфигурационные свойства клиента
+   * @return {@link AuditConfig}
    */
   @Bean
   public AuditConfig auditConfig(AuditClientProperties properties) {
@@ -28,14 +26,12 @@ public final class AuditClientConfig {
   }
 
   /**
-   * Создает и возвращает службу аудита на основе заданной конфигурации.
-   *
-   * @param auditConfig конфигурация аудита.
-   * @return инстанцированная служба аудита {@link AuditService}.
+   * @param auditConfig конфигурация аудита
+   * @return {@link AuditService}
    */
   @Bean
   public AuditService auditService(AuditConfig auditConfig) {
-    var auditServiceFactory = new AuditServiceFactory(auditConfig);
+    final AuditServiceFactory auditServiceFactory = new AuditServiceFactory(auditConfig);
     return auditServiceFactory.getAuditService();
   }
 }

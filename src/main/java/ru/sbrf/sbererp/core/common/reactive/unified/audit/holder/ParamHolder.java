@@ -12,11 +12,11 @@ import ru.sbrf.sbererp.core.common.reactive.unified.audit.extractor.Extractor;
 /**
  * YAML-параметр события. {@link #extractor} и {@link #key} мутируются биндером.
  *
- * @param name        имя в метамодели.
- * @param description описание в метамодели.
- * @param masks       JSON-пути для вырезания полей; может быть {@code null}.
- * @param key         ключ извлечения (заголовок/поле); задаётся YAML или биндером.
- * @param extractor   стратегия чтения {@link ServerWebExchange}.
+ * @param name        имя в метамодели
+ * @param description описание в метамодели
+ * @param masks       JSON-пути для вырезания полей; может быть {@code null}
+ * @param key         ключ извлечения
+ * @param extractor   стратегия чтения {@link ServerWebExchange}
  */
 public record ParamHolder(
     String name,
@@ -27,12 +27,10 @@ public record ParamHolder(
 ) implements Holder {
 
   /**
-   * Конструктор привязки YAML.
-   *
-   * @param name        имя параметра.
-   * @param description описание параметра.
-   * @param key         ключ извлечения, если отличается от имени.
-   * @param masks       список масок.
+   * @param name        имя параметра
+   * @param description описание параметра
+   * @param key         ключ извлечения, если отличается от имени
+   * @param masks       список масок
    */
   @ConstructorBinding
   public ParamHolder(String name, String description, String key, List<String> masks) {
@@ -90,9 +88,6 @@ public record ParamHolder(
 
   /**
    * Сравнивает параметры по YAML-полям, без рантайм-привязки экстрактора.
-   *
-   * @param object другой объект.
-   * @return {@code true}, если имя, описание и маски совпадают.
    */
   @Override
   public boolean equals(Object object) {
@@ -109,8 +104,6 @@ public record ParamHolder(
 
   /**
    * Хеш по YAML-полям параметра.
-   *
-   * @return хеш имени, описания и масок.
    */
   @Override
   public int hashCode() {

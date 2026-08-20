@@ -6,10 +6,7 @@ import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Регистрирует выделенный {@code boundedElastic}-планировщик для блокирующего клиента аудита.
- * <p>
- * Event loop Netty нельзя блокировать вызовами {@link com.sbt.audit.core.service.AuditService}:
- * все обращения к библиотеке выполняются на этом планировщике.
+ * Выделенный {@code boundedElastic}-планировщик для блокирующего клиента аудита.
  */
 @Configuration(proxyBeanMethods = false)
 public final class AuditSchedulerConfig {
@@ -26,9 +23,7 @@ public final class AuditSchedulerConfig {
   public static final String DESTROY_METHOD = "dispose";
 
   /**
-   * Создаёт именованный {@code boundedElastic}-пул с префиксом потоков {@code unified-audit}.
-   *
-   * @return планировщик для блокирующего I/O аудита.
+   * @return планировщик для блокирующего I/O аудита
    */
   @Bean(name = ELASTIC_SCHEDULER, destroyMethod = DESTROY_METHOD)
   public Scheduler unifiedAuditElasticScheduler() {
